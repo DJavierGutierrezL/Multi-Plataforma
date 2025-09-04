@@ -26,13 +26,24 @@ app.use("/suscripciones", suscripcionesRouter);
 
 const port = process.env.PORT || 10000;
 
-// Optionally run migrations (schema.sql) at startup if RUN_MIGRATIONS=true
-(async () => {
-  if (process.env.RUN_MIGRATIONS === "true") {
-    console.log("Running migrations at startup...");
-    await ensureDatabase();
+const startServer = async () => {
+  try {
+    if (process.env.RUN_MIGRATIONS === "true") {
+      console.log("Running migrations at startup...");
+      await ensureDatabase();
+      console.log("Database schema ensured.");
+    }
+
+    app.listen(port, () => {
+      console.log(`Server listening on port ${port}`);
+    });
+
+  } catch (err) {
+    console.error("Startup error:", err);
+    process.exit(1); // Render detectará el fallo
   }
-  app.listen(port, () => {
-    console.log(`Server listening on port ${port}`);
-  });
-})();
+};
+
+// Iniciar servidor
+startServer();
+
