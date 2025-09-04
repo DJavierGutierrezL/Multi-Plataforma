@@ -7,9 +7,9 @@
     "node": ">=18"
   },
   "scripts": {
-  "dev": "node backend/server.js",
-  "start": "node backend/server.js",
-  "migrate": "node backend/setup_db.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "migrate": "node setup_db.js"
   },
     "dependencies": {
       "bcryptjs": "^2.4.3",
