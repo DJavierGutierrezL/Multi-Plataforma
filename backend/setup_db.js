@@ -24,7 +24,15 @@ export async function ensureDatabase() {
   }
 }
 
-// If run as a script: node setup_db.js
-if (import.meta.url === `file://${__filename}`) {
-  ensureDatabase().then(() => process.exit(0)).catch(() => process.exit(1));
+// Ejecutar solo si se corre setup_db.js directamente
+if (process.argv[1].endsWith("setup_db.js")) {
+  ensureDatabase()
+    .then(() => {
+      console.log("Migrations run successfully.");
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error("Migrations failed:", err);
+      process.exit(1);
+    });
 }
