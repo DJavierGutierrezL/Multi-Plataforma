@@ -7,7 +7,8 @@
   "dev": "vite",
   "build": "vite build",
   "preview": "vite preview",
-  "start": "serve -s dist"
+  "start": "serve -s dist",
+  "replace-api": "node replace-api-urls.js"
 },
   "dependencies": {
   "react": "^19.1.1",
