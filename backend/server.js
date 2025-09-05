@@ -1,6 +1,7 @@
 import express from "express";
 import pkg from "pg";
 import cors from "cors";
+import { ensureDatabase } from "./setup_db.js"; // 👈 importar migraciones
 
 const { Pool } = pkg;
 
@@ -15,6 +16,13 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+
+// Ejecutar migraciones si RUN_MIGRATIONS=true
+if (process.env.RUN_MIGRATIONS === "true") {
+  ensureDatabase()
+    .then(() => console.log("✅ Migraciones ejecutadas con éxito"))
+    .catch((err) => console.error("❌ Error ejecutando migraciones:", err));
+}
 
 // Endpoint de prueba
 app.get("/", (req, res) => {
