@@ -1,3 +1,15 @@
+// types.ts
+
+export enum Page {
+  Dashboard = 'Dashboard',
+  Appointments = 'Citas',
+  Clients = 'Clientes',
+  Inventory = 'Inventario',
+  VirtualAssistant = 'Asistente IA',
+  Settings = 'Ajustes',
+  Subscription = 'Suscripción',
+}
+
 export enum AppointmentStatus {
   Pending = 'Pendiente',
   Confirmed = 'Confirmada',
@@ -6,32 +18,39 @@ export enum AppointmentStatus {
   PaymentPending = 'Falta Pago',
 }
 
-export interface Client {
-  id: number;
-  name: string;
-  phone: string;
-  email:string;
-  birthDate: string;
-  serviceHistory: string[];
-  preferences: string;
-  isNew: boolean;
+export enum UserRole {
+  SuperAdmin = 'SuperAdmin',
+  User = 'User',
 }
 
-export interface Appointment {
-  id: number;
-  clientName: string;
-  services: string[];
-  date: string; 
-  time: string;
-  status: AppointmentStatus;
-  cost?: number;
+export enum BusinessType {
+  NailSalon = 'Salón de Uñas',
+  Barbershop = 'Barbería',
+  BeautySalon = 'Salón de Belleza',
+  Other = 'Otro',
 }
 
-export interface Product {
-  id: number;
-  name: string;
-  currentStock: number;
-  minStock: number;
+export enum PrimaryColor {
+    Pink = 'Pink',
+    Gold = 'Gold',
+    Green = 'Green',
+    Red = 'Red',
+    Blue = 'Blue',
+    Beige = 'Beige',
+}
+
+export enum BackgroundColor {
+    White = 'White',
+    Black = 'Black',
+    Blue = 'Blue',
+}
+
+export enum SubscriptionStatus {
+    Active = 'Active',
+    Expired = 'Expired',
+    Suspended = 'Suspended',
+    Cancelled = 'Cancelled',
+    PaymentPending = 'PaymentPending'
 }
 
 export interface Profile {
@@ -40,28 +59,41 @@ export interface Profile {
   accountNumber: string;
 }
 
-export type Prices = Record<string, number>;
-
-export enum Page {
-  Dashboard = 'Dashboard',
-  Appointments = 'Appointments',
-  Clients = 'Clients',
-  Inventory = 'Inventario',
-  VirtualAssistant = 'Asistente virtual',
-  Subscription = 'Suscripción',
-  Settings = 'Settings',
+export interface Prices {
+  [service: string]: number;
 }
 
-export interface KandyAIMessage {
-  sender: 'user' | 'kandy';
-  text: string;
+export interface ThemeSettings {
+    primaryColor: PrimaryColor;
+    backgroundColor: BackgroundColor;
 }
 
-// --- Multi-business Types ---
+export interface Appointment {
+  id: number;
+  clientName: string;
+  services: string[];
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  status: AppointmentStatus;
+  cost?: number;
+}
 
-export enum UserRole {
-  SuperAdmin = 'SuperAdmin',
-  User = 'User',
+export interface Client {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  birthDate?: string; // YYYY-MM-DD
+  serviceHistory: string[];
+  preferences?: string;
+  isNew?: boolean;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  currentStock: number;
+  minStock: number;
 }
 
 export interface User {
@@ -72,48 +104,14 @@ export interface User {
   username: string;
   password?: string;
   role: UserRole;
-  businessId?: number; // Optional for SuperAdmin
-}
-
-export enum BusinessType {
-  NailSalon = 'Manicurista',
-  Barbershop = 'Barbería',
-  Other = 'Otro',
-}
-
-// --- Theme Customization Types ---
-export enum PrimaryColor {
-  Gold = 'dorado',
-  Green = 'verde',
-  Red = 'rojo',
-  Blue = 'azul',
-  Pink = 'rosa',
-  Beige = 'beige',
-}
-
-export enum BackgroundColor {
-  Black = 'negro',
-  Blue = 'azul',
-  White = 'blanco',
-}
-
-export interface ThemeSettings {
-  primaryColor: PrimaryColor;
-  backgroundColor: BackgroundColor;
+  businessId?: number;
 }
 
 export interface Plan {
-  id: number;
-  name: string;
-  price: number;
-  features: string[];
-}
-
-// --- Subscription Types ---
-export enum SubscriptionStatus {
-    Active = 'activo',
-    Expired = 'vencido',
-    Suspended = 'suspendido',
+    id: number;
+    name: string;
+    price: number;
+    features: string[];
 }
 
 export interface Subscription {
@@ -121,21 +119,21 @@ export interface Subscription {
     businessId: number;
     planId: number;
     status: SubscriptionStatus;
-    startDate: string; // ISO String
-    endDate: string; // ISO String
+    startDate: string; // ISO Date
+    endDate: string; // ISO Date
 }
 
 export interface Payment {
     id: number;
     businessId: number;
     amount: number;
-    date: string; // ISO String
+    date: string; // ISO Date
     planName: string;
 }
 
-
 export interface Business {
   id: number;
+  subscriptionId: number;
   type: BusinessType;
   profile: Profile;
   prices: Prices;
@@ -143,5 +141,20 @@ export interface Business {
   appointments: Appointment[];
   products: Product[];
   themeSettings: ThemeSettings;
-  subscriptionId: number;
+}
+
+export interface KandyAIMessage {
+  sender: 'user' | 'kandy';
+  text: string;
+}
+
+export interface RegistrationData {
+    businessName: string;
+    businessType: BusinessType;
+    fullName: string;
+    username: string;
+    email: string;
+    phone: string;
+    password: string;
+    planId?: number;
 }

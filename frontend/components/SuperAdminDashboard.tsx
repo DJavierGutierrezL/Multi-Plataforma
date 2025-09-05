@@ -27,6 +27,7 @@ interface SuperAdminDashboardProps {
     plans: Plan[];
     setPlans: React.Dispatch<React.SetStateAction<Plan[]>>;
     subscriptions: Subscription[];
+    setSubscriptions: React.Dispatch<React.SetStateAction<Subscription[]>>;
     onUpdateSubscriptionStatus: (subscriptionId: number, newStatus: SubscriptionStatus) => void;
     onLogout: () => void;
     theme: 'light' | 'dark';
@@ -34,7 +35,7 @@ interface SuperAdminDashboardProps {
     onImpersonate: (businessId: number) => void;
 }
 
-const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, setBusinesses, users, setUsers, plans, setPlans, subscriptions, onUpdateSubscriptionStatus, onLogout, theme, onThemeChange, onImpersonate }) => {
+const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, setBusinesses, users, setUsers, plans, setPlans, subscriptions, setSubscriptions, onUpdateSubscriptionStatus, onLogout, theme, onThemeChange, onImpersonate }) => {
     const [isBusinessModalOpen, setIsBusinessModalOpen] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [isDeleteBusinessModalOpen, setIsDeleteBusinessModalOpen] = useState(false);
@@ -205,11 +206,45 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
         handleCloseModals();
     };
 
+    const handleAssignPlanToBusiness = (businessId: number, planId: number) => {
+        const existingSubscription = subscriptions.find(s => s.businessId === businessId);
+        const today = new Date();
+        const nextMonth = new Date(new Date().setMonth(today.getMonth() + 1));
+
+        if (existingSubscription) {
+            // Update existing subscription's plan, status, and end date
+            setSubscriptions(prevSubs => prevSubs.map(sub => 
+                sub.id === existingSubscription.id 
+                ? { ...sub, planId, status: SubscriptionStatus.Active, endDate: nextMonth.toISOString(), startDate: today.toISOString() } 
+                : sub
+            ));
+        } else {
+            // Create a new subscription
+            const newSubscription: Subscription = {
+                id: Date.now(),
+                businessId,
+                planId,
+                status: SubscriptionStatus.Active,
+                startDate: today.toISOString(),
+                endDate: nextMonth.toISOString(),
+            };
+            // Add the new subscription to the list
+            setSubscriptions(prevSubs => [...prevSubs, newSubscription]);
+            // Update the business to link to this new subscription
+            setBusinesses(prevBizs => prevBizs.map(biz => 
+                biz.id === businessId 
+                ? { ...biz, subscriptionId: newSubscription.id } 
+                : biz
+            ));
+        }
+    };
+
+
     const BusinessTypeIcon = ({ type }: { type: BusinessType }) => {
         switch (type) {
-            case BusinessType.NailSalon: return <AnimatedNailSalonLogo className="w-8 h-8 text-sm" />;
-            case BusinessType.Barbershop: return <BarberPoleIcon className="w-6 h-6" />;
-            default: return <BuildingIcon className="w-6 h-6 text-gray-500" />;
+            case BusinessType.NailSalon: return <AnimatedNailSalonLogo className="w-10 h-10 text-base" />;
+            case BusinessType.Barbershop: return <BarberPoleIcon className="w-8 h-8" />;
+            default: return <BuildingIcon className="w-8 h-8 text-gray-500" />;
         }
     };
     
@@ -221,6 +256,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                  return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Vencido</span>;
             case SubscriptionStatus.Suspended:
                  return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">Suspendido</span>;
+            case SubscriptionStatus.Cancelled:
+                return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-500 text-white dark:bg-gray-600 dark:text-gray-100">Cancelado</span>;
+            case SubscriptionStatus.PaymentPending:
+                return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">Falta Pago</span>;
             default:
                 return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Sin Plan</span>;
         }
@@ -254,37 +293,72 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                                 <PlusIcon className="w-5 h-5 mr-2" /> Crear Negocio
                             </button>
                         </div>
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                             {businesses.map(b => {
-                                const subscription = subscriptions.find(s => s.id === b.subscriptionId);
+                                const subscription = subscriptions.find(s => s.businessId === b.id);
                                 const plan = plans.find(p => p.id === subscription?.planId);
                                 return (
-                                <div key={b.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col sm:flex-row justify-between sm:items-center">
-                                    <div className="flex items-center gap-3 mb-3 sm:mb-0">
-                                        <BusinessTypeIcon type={b.type} />
-                                        <div>
-                                            <p className="font-bold text-lg">{b.profile.salonName}</p>
-                                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                                <span>{plan?.name || 'Sin Plan'}</span>
-                                                <span className="text-gray-300 dark:text-gray-600">•</span>
+                                <div key={b.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col justify-between transition-transform hover:scale-105 hover:shadow-pink-500/10">
+                                    <div>
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <BusinessTypeIcon type={b.type} />
+                                            <div>
+                                                <p className="font-bold text-xl text-gray-800 dark:text-gray-100">{b.profile.salonName}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{b.type}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="space-y-3 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-600 dark:text-gray-400 font-medium">Estado:</span>
                                                 {getStatusBadge(subscription?.status)}
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-600 dark:text-gray-400 font-medium">Plan:</span>
+                                                <span className="font-semibold text-gray-800 dark:text-gray-200">{plan?.name || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-600 dark:text-gray-400 font-medium">Vence:</span>
+                                                <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                                    {subscription ? new Date(subscription.endDate).toLocaleDateString('es-ES') : 'N/A'}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center space-x-2 self-end sm:self-center">
-                                        <select
-                                            value={subscription?.status || ''}
-                                            onChange={(e) => subscription && onUpdateSubscriptionStatus(subscription.id, e.target.value as SubscriptionStatus)}
-                                            className="text-xs p-1 border rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-1 focus:ring-pink-400"
-                                            disabled={!subscription}
-                                        >
-                                            <option value={SubscriptionStatus.Active}>Activar</option>
-                                            <option value={SubscriptionStatus.Expired}>Vencer</option>
-                                            <option value={SubscriptionStatus.Suspended}>Suspender</option>
-                                        </select>
-                                        <button onClick={() => onImpersonate(b.id)} title="Ver Negocio" className="text-green-500 hover:text-green-700 p-2"><EyeIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleOpenBusinessModal(b)} title="Editar Negocio" className="text-blue-500 hover:text-blue-700 p-2"><i className="fas fa-edit"></i></button>
-                                        <button onClick={() => handleOpenDeleteBusinessModal(b)} title="Eliminar Negocio" className="text-red-500 hover:text-red-700 p-2"><TrashIcon className="w-5 h-5"/></button>
+                                    <div className="mt-5 space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                             <select
+                                                value={plan?.id || ''}
+                                                onChange={(e) => {
+                                                    const planId = Number(e.target.value);
+                                                    if (planId) {
+                                                        handleAssignPlanToBusiness(b.id, planId);
+                                                    }
+                                                }}
+                                                className="w-full text-xs p-2 border rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                                            >
+                                                <option value="" disabled>Asignar Plan</option>
+                                                {plans.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={subscription?.status || ''}
+                                                onChange={(e) => subscription && onUpdateSubscriptionStatus(subscription.id, e.target.value as SubscriptionStatus)}
+                                                className="w-full text-xs p-2 border rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                                                disabled={!subscription}
+                                            >
+                                                <option value="" disabled>Estado</option>
+                                                {Object.values(SubscriptionStatus).map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center justify-end space-x-1 border-t border-gray-200 dark:border-gray-700 pt-3">
+                                            <button onClick={() => onImpersonate(b.id)} title="Ver Negocio" className="text-green-500 hover:text-green-600 p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"><EyeIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => handleOpenBusinessModal(b)} title="Editar Negocio" className="text-blue-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"><i className="fas fa-edit"></i></button>
+                                            <button onClick={() => handleOpenDeleteBusinessModal(b)} title="Eliminar Negocio" className="text-red-500 hover:text-red-600 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"><TrashIcon className="w-5 h-5"/></button>
+                                        </div>
                                     </div>
                                 </div>
                             )})}

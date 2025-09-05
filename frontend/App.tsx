@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Page, Profile, Prices, Appointment, Client, Product, User, Business, UserRole, BusinessType, ThemeSettings, PrimaryColor, BackgroundColor, Plan, Subscription, Payment, SubscriptionStatus } from './types';
+import { Page, Profile, Prices, Appointment, Client, Product, User, Business, UserRole, BusinessType, ThemeSettings, PrimaryColor, BackgroundColor, Plan, Subscription, Payment, SubscriptionStatus, RegistrationData } from './types';
 import { mockBusinesses, mockUsers, mockPlans, mockSubscriptions, mockPayments } from './data/mockData';
 
 // Import Pages/Views
@@ -182,6 +182,63 @@ const App: React.FC = () => {
     setCurrentPage(Page.Dashboard);
     setViewState('landing'); // Return to landing page on logout
   };
+
+  const handleRegister = (data: RegistrationData) => {
+    const selectedPlan = plans.find(p => p.id === data.planId);
+    if (!selectedPlan) {
+        console.error("Selected plan not found during registration.");
+        alert("Error: El plan seleccionado no es válido. Por favor, intenta de nuevo.");
+        return;
+    }
+    
+    const today = new Date();
+    const trialEndDate = new Date();
+    trialEndDate.setDate(today.getDate() + 14); // 14-day free trial
+
+    const newBusinessId = Date.now() + 1;
+
+    const newSubscription: Subscription = {
+        id: Date.now() + 2,
+        businessId: newBusinessId,
+        planId: selectedPlan.id,
+        status: SubscriptionStatus.Active, // Trial is active
+        startDate: today.toISOString(),
+        endDate: trialEndDate.toISOString(),
+    };
+
+    const [firstName, ...lastNameParts] = data.fullName.split(' ');
+    const lastName = lastNameParts.join(' ');
+    
+    const newBusiness: Business = {
+        id: newBusinessId,
+        subscriptionId: newSubscription.id,
+        type: data.businessType,
+        profile: { salonName: data.businessName, ownerName: data.fullName, accountNumber: '' },
+        prices: data.businessType === BusinessType.NailSalon ? { 'Manos Semipermanente': 40000, 'Pies Semipermanente': 45000, 'Manos Tradicional': 25000, 'Pies Tradicional': 30000, 'Retoque': 20000, 'Blindaje': 10000 } : { 'Corte de Cabello': 25000, 'Barba': 15000 },
+        clients: [],
+        appointments: [],
+        products: [],
+        themeSettings: { primaryColor: data.businessType === BusinessType.NailSalon ? PrimaryColor.Pink : PrimaryColor.Blue, backgroundColor: BackgroundColor.White }
+    };
+
+    const newUser: User = {
+        id: Date.now() + 3,
+        firstName,
+        lastName: lastName || '',
+        phone: data.phone,
+        username: data.username.toLowerCase(),
+        password: data.password,
+        role: UserRole.User,
+        businessId: newBusiness.id,
+    };
+
+    setBusinesses(prev => [...prev, newBusiness]);
+    setSubscriptions(prev => [...prev, newSubscription]);
+    setUsers(prev => [...prev, newUser]);
+    
+    // Auto-login
+    setCurrentUser(newUser);
+  };
   
   const handleImpersonate = (businessId: number) => {
       if (currentUser?.role === UserRole.SuperAdmin) {
@@ -219,6 +276,34 @@ const App: React.FC = () => {
     // No alert needed, the UI will update
   };
   
+  const handleChangePlan = (businessId: number, newPlanId: number) => {
+      const subscription = subscriptions.find(s => s.businessId === businessId);
+      const newPlan = plans.find(p => p.id === newPlanId);
+
+      if (subscription && newPlan) {
+          const today = new Date();
+          const nextMonth = new Date(new Date().setMonth(today.getMonth() + 1));
+
+          // Update the subscription with the new plan and reset the billing cycle
+          setSubscriptions(subs => subs.map(s => s.id === subscription.id ? {
+              ...s,
+              planId: newPlanId,
+              status: SubscriptionStatus.Active,
+              startDate: today.toISOString(),
+              endDate: nextMonth.toISOString(),
+          } : s));
+
+          // Create a new payment record for the plan change
+          setPayments(pays => [...pays, {
+              id: Date.now(),
+              businessId,
+              amount: newPlan.price,
+              date: today.toISOString(),
+              planName: `Cambio a ${newPlan.name}`,
+          }]);
+      }
+  };
+  
   const handleUpdateSubscriptionStatus = (subscriptionId: number, newStatus: SubscriptionStatus) => {
     setSubscriptions(subs => subs.map(s => {
       if (s.id === subscriptionId) {
@@ -242,7 +327,11 @@ const App: React.FC = () => {
         return (
             <>
                 <ThemeStyleProvider mode={theme} />
-                <LandingPage onLoginClick={() => setViewState('login')} />
+                <LandingPage 
+                  onLoginClick={() => setViewState('login')} 
+                  onRegister={handleRegister}
+                  plans={plans}
+                />
             </>
         );
     }
@@ -260,6 +349,7 @@ const App: React.FC = () => {
       plans={plans}
       setPlans={setPlans}
       subscriptions={subscriptions}
+      setSubscriptions={setSubscriptions}
       onUpdateSubscriptionStatus={handleUpdateSubscriptionStatus}
       onLogout={handleLogout}
       theme={theme}
@@ -281,8 +371,8 @@ const App: React.FC = () => {
       return (
           <SubscriptionExpired
               business={currentBusiness!}
-              subscription={currentSubscription!}
-              plan={currentPlan!}
+              subscription={currentSubscription}
+              plan={currentPlan}
               onRenew={handleRenewSubscription}
               onLogout={handleLogout}
           />
@@ -388,10 +478,12 @@ const App: React.FC = () => {
       case Page.Subscription:
         return <SubscriptionPage
                   business={currentBusiness}
-                  subscription={currentSubscription!}
-                  plan={currentPlan!}
+                  subscription={currentSubscription}
+                  plan={currentPlan}
+                  allPlans={plans}
                   paymentHistory={payments.filter(p => p.businessId === currentBusiness.id)}
                   onRenew={handleRenewSubscription}
+                  onChangePlan={handleChangePlan}
                />;
       case Page.Settings:
         return <Settings profile={currentBusiness.profile} prices={currentBusiness.prices} onSaveProfile={handleSaveProfile} onSavePrices={handleSavePrices} theme={theme} onThemeChange={setTheme} onAppointmentsImported={handleAppointmentsImported} themeSettings={currentBusiness.themeSettings} onSaveThemeSettings={handleSaveThemeSettings} />;
@@ -414,6 +506,8 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           isImpersonating={!!impersonatedBusinessId}
           onExitImpersonation={handleExitImpersonation}
+          subscriptionEndDate={currentSubscription?.endDate}
+          planName={currentPlan?.name}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm md:hidden dark:bg-card/50">

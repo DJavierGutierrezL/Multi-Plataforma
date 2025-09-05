@@ -23,6 +23,8 @@ interface SidebarProps {
   onLogout: () => void;
   isImpersonating?: boolean;
   onExitImpersonation?: () => void;
+  subscriptionEndDate?: string;
+  planName?: string;
 }
 
 const NavItem: React.FC<{
@@ -47,7 +49,7 @@ const NavItem: React.FC<{
   </li>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({ businessName, businessType, currentPage, setCurrentPage, isSidebarOpen, setIsSidebarOpen, onLogout, isImpersonating, onExitImpersonation }) => {
+const Sidebar: React.FC<SidebarProps> = ({ businessName, businessType, currentPage, setCurrentPage, isSidebarOpen, setIsSidebarOpen, onLogout, isImpersonating, onExitImpersonation, subscriptionEndDate, planName }) => {
   const navItems = [
     { id: Page.Dashboard, icon: <DashboardIcon className="w-6 h-6" />, label: 'Dashboard' },
     { id: Page.Appointments, icon: <CalendarIcon className="w-6 h-6" />, label: 'Citas' },
@@ -59,6 +61,16 @@ const Sidebar: React.FC<SidebarProps> = ({ businessName, businessType, currentPa
   const handleItemClick = (page: Page) => {
     setCurrentPage(page);
     setIsSidebarOpen(false); // Close sidebar on mobile after navigation
+  }
+
+  let daysRemaining: number | null = null;
+  if (subscriptionEndDate) {
+      const endDate = new Date(subscriptionEndDate);
+      const today = new Date();
+      // To ensure we count the last day fully, we compare against the end of the current day
+      today.setHours(23, 59, 59, 999);
+      const diffTime = endDate.getTime() - new Date().getTime(); // Compare with now for more accuracy
+      daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
   return (
@@ -120,6 +132,17 @@ const Sidebar: React.FC<SidebarProps> = ({ businessName, businessType, currentPa
         </div>
         
         <div>
+            {planName && daysRemaining !== null && daysRemaining > 0 && (
+              <div className="p-3 my-1 rounded-lg bg-primary/10 text-primary text-center">
+                <p className="font-bold text-sm">Plan {planName}</p>
+                <p className="text-xs">{daysRemaining} {daysRemaining === 1 ? 'día restante' : 'días restantes'}</p>
+              </div>
+            )}
+            {planName && daysRemaining !== null && daysRemaining <= 0 && (
+                <div className="p-3 my-1 rounded-lg bg-red-500/10 text-red-500 text-center">
+                    <p className="font-bold text-sm">Suscripción Vencida</p>
+                </div>
+            )}
           <hr className="my-4 border-border" />
           <ul>
                <NavItem

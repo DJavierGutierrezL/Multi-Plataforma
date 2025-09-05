@@ -6,18 +6,17 @@ import { DollarSignIcon } from './icons/DollarSignIcon';
 import { TrendingUpIcon } from './icons/TrendingUpIcon';
 import { FrenchBulldogIcon } from './icons/FrenchBulldogIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
+import { RegistrationData, Plan } from '../types';
+import RegistrationModal from './RegistrationModal';
 
 interface LandingPageProps {
   onLoginClick: () => void;
+  onRegister: (data: RegistrationData) => void;
+  plans: Plan[];
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
-    
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert('¡Gracias por registrarte! Esta es una demostración. Serás redirigido a la página de inicio de sesión.');
-    onLoginClick();
-  };
+const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegister, plans }) => {
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
     <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm transition-transform hover:scale-105 hover:border-purple-500">
@@ -28,6 +27,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
   );
 
   return (
+    <>
     <div className="bg-[#0b1120] text-slate-300 font-sans" style={{ fontFamily: "'Lato', sans-serif" }}>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900/50 backdrop-blur-lg border-b border-slate-800">
@@ -40,9 +40,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             <button onClick={onLoginClick} className="text-slate-300 hover:text-white transition-colors text-sm font-semibold">
               Iniciar Sesión
             </button>
-            <a href="#register-form" className="hidden sm:block bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105 text-sm">
-              Registrarse Gratis
-            </a>
+            <button onClick={() => setIsRegisterModalOpen(true)} className="hidden sm:block bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105 text-sm">
+              Registrarse
+            </button>
           </div>
         </div>
       </header>
@@ -61,9 +61,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                     <p className="text-lg md:text-xl text-slate-400 mb-8 max-w-xl mx-auto md:mx-0">
                        Organiza tus citas, clientes y finanzas en un solo lugar. Kandy es la herramienta definitiva para barberías, salones y manicuristas modernos.
                     </p>
-                    <a href="#register-form" className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105 inline-block">
+                    <button onClick={() => setIsRegisterModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105 inline-block">
                         Prueba Gratis por 14 días
-                    </a>
+                    </button>
                 </div>
                 <div className="hidden md:flex justify-center items-center">
                     <img 
@@ -75,51 +75,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             </div>
         </section>
         
-        {/* Registration Form Section */}
-        <section id="register-form" className="py-20 bg-slate-900">
+        {/* Registration CTA Section */}
+        <section id="register-cta" className="py-20 bg-slate-900">
             <div className="container mx-auto px-6">
                 <div className="max-w-3xl mx-auto text-center">
                     <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{fontFamily: "'Poppins', sans-serif"}}>Empieza a organizar tu negocio hoy</h2>
                     <p className="text-slate-400 mb-8">Crea tu cuenta gratis y descubre por qué cientos de negocios nos prefieren.</p>
-                </div>
-                <div className="max-w-2xl mx-auto bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl">
-                    <form onSubmit={handleRegister} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label htmlFor="fullName" className="block text-sm font-medium text-slate-300 mb-2">Nombre Completo</label>
-                            <input type="text" id="fullName" name="fullName" required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"/>
-                        </div>
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">Email</label>
-                            <input type="email" id="email" name="email" required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"/>
-                        </div>
-                         <div>
-                            <label htmlFor="phone" className="block text-sm font-medium text-slate-300 mb-2">Teléfono</label>
-                            <input type="tel" id="phone" name="phone" required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"/>
-                        </div>
-                        <div>
-                            <label htmlFor="businessType" className="block text-sm font-medium text-slate-300 mb-2">Tipo de Negocio</label>
-                            <select id="businessType" name="businessType" required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none">
-                                <option>Manicurista</option>
-                                <option>Barbería</option>
-                                <option>Salón de Belleza</option>
-                                <option>Otro</option>
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                             <label htmlFor="professionals" className="block text-sm font-medium text-slate-300 mb-2">Cantidad de Profesionales</label>
-                             <select id="professionals" name="professionals" required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-purple-500 focus:outline-none">
-                                <option>Yo solo/a</option>
-                                <option>2-5 personas</option>
-                                <option>6-10 personas</option>
-                                <option>Más de 10</option>
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                           <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105">
-                                Crear Cuenta Gratis
-                           </button>
-                        </div>
-                    </form>
+                     <button 
+                        onClick={() => setIsRegisterModalOpen(true)}
+                        className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105"
+                    >
+                        Crear Cuenta Gratis
+                    </button>
                 </div>
             </div>
         </section>
@@ -196,9 +163,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                             Nuestros clientes aumentan sus ingresos en un 82%
                         </p>
 
-                        <a href="#register-form" className="w-full text-center block sm:inline-block bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105">
+                        <button onClick={() => setIsRegisterModalOpen(true)} className="w-full text-center block sm:inline-block bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all transform hover:scale-105">
                             Prueba Gratis Hoy
-                        </a>
+                        </button>
                     </div>
 
                     {/* Right side: Mockups */}
@@ -257,20 +224,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                     {/* Plan Básico */}
                     <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 flex flex-col">
                         <h3 className="text-xl font-bold text-purple-400">Básico</h3>
-                        <p className="text-4xl font-extrabold text-white my-4">$15 <span className="text-lg font-medium text-slate-400">/mes</span></p>
+                        <p className="text-4xl font-extrabold text-white my-4">$9.999 <span className="text-lg font-medium text-slate-400">/mes</span></p>
                         <p className="text-slate-400 mb-6">Ideal para profesionales independientes.</p>
                         <ul className="space-y-3 text-slate-300 flex-grow">
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Agenda y Citas</li>
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Hasta 50 Clientes</li>
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>1 Profesional</li>
                         </ul>
-                        <a href="#register-form" className="mt-8 w-full text-center bg-slate-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-600 transition-colors">Empezar ahora</a>
+                        <button onClick={() => setIsRegisterModalOpen(true)} className="mt-8 w-full text-center bg-slate-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-600 transition-colors">Empezar ahora</button>
                     </div>
                     {/* Plan Premium */}
                     <div className="bg-slate-800 p-8 rounded-xl border-2 border-purple-500 flex flex-col relative shadow-2xl shadow-purple-500/20">
                          <span className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">MÁS POPULAR</span>
-                         <h3 className="text-xl font-bold text-purple-400">Premium</h3>
-                        <p className="text-4xl font-extrabold text-white my-4">$29 <span className="text-lg font-medium text-slate-400">/mes</span></p>
+                         <h3 className="text-xl font-bold text-purple-400">Pro</h3>
+                        <p className="text-4xl font-extrabold text-white my-4">$16.900 <span className="text-lg font-medium text-slate-400">/mes</span></p>
                         <p className="text-slate-400 mb-6">Perfecto para negocios en crecimiento.</p>
                         <ul className="space-y-3 text-slate-300 flex-grow">
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Todo lo del plan Básico</li>
@@ -279,19 +246,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Asistente Kandy AI</li>
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Hasta 5 Profesionales</li>
                         </ul>
-                        <a href="#register-form" className="mt-8 w-full text-center bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-shadow">Elegir Premium</a>
+                        <button onClick={() => setIsRegisterModalOpen(true)} className="mt-8 w-full text-center bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3 px-6 rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-shadow">Elegir Pro</button>
                     </div>
                     {/* Plan Empresarial */}
                     <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 flex flex-col">
-                        <h3 className="text-xl font-bold text-purple-400">Empresarial</h3>
-                        <p className="text-4xl font-extrabold text-white my-4">Contacto</p>
+                        <h3 className="text-xl font-bold text-purple-400">Empresa</h3>
+                        <p className="text-4xl font-extrabold text-white my-4">$49.999</p>
                         <p className="text-slate-400 mb-6">Para salones con múltiples locales.</p>
                         <ul className="space-y-3 text-slate-300 flex-grow">
-                             <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Todo lo del plan Premium</li>
+                             <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Todo lo del plan Pro</li>
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Profesionales Ilimitados</li>
                              <li className="flex items-center"><CheckCircleIcon className="w-5 h-5 text-green-400 mr-3"/>Soporte Prioritario</li>
                         </ul>
-                        <a href="#register-form" className="mt-8 w-full text-center bg-slate-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-600 transition-colors">Contactar Ventas</a>
+                        <button onClick={() => setIsRegisterModalOpen(true)} className="mt-8 w-full text-center bg-slate-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-600 transition-colors">Contactar Ventas</button>
                     </div>
                 </div>
             </div>
@@ -370,6 +337,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
         </div>
       </footer>
     </div>
+    <RegistrationModal 
+        isOpen={isRegisterModalOpen}
+        onClose={() => setIsRegisterModalOpen(false)}
+        onRegister={onRegister}
+        plans={plans}
+        onLoginClick={onLoginClick}
+      />
+    </>
   );
 };
 

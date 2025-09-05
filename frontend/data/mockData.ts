@@ -7,8 +7,40 @@ export const mockUsers: User[] = [
 ];
 
 // --- PLANS ---
-// Mock plans have been removed to prepare for a real backend.
-export const mockPlans: Plan[] = [];
+export const mockPlans: Plan[] = [
+  { 
+    id: 1, 
+    name: 'Básico', 
+    price: 9999, 
+    features: [
+      'Agenda y Citas',
+      'Hasta 50 Clientes',
+      '1 Profesional'
+    ] 
+  },
+  { 
+    id: 2, 
+    name: 'Pro', 
+    price: 16900, 
+    features: [
+      'Todo lo del plan Básico',
+      'Pagos y Facturación',
+      'Reportes de Ventas',
+      'Asistente Kandy AI',
+      'Hasta 5 Profesionales'
+    ] 
+  },
+  { 
+    id: 3, 
+    name: 'Empresa', 
+    price: 49999, 
+    features: [
+      'Todo lo del plan Pro',
+      'Profesionales Ilimitados',
+      'Soporte Prioritario'
+    ] 
+  },
+];
 
 // --- SUBSCRIPTIONS ---
 // Mock subscriptions have been removed to prepare for a real backend.
