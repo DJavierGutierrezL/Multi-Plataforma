@@ -1,56 +1,75 @@
 import express from "express";
+import pkg from "pg";
 import cors from "cors";
-import dotenv from "dotenv";
-import authRouter from "./routes/auth.js";
-import barberiasRouter from "./routes/barberias.js";
-import serviciosRouter from "./routes/servicios.js";
-import citasRouter from "./routes/citas.js";
-import suscripcionesRouter from "./routes/suscripciones.js";
-import { ensureDatabase } from "./setup_db.js";
 
-dotenv.config();
+const { Pool } = pkg;
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get("/health", (_req, res) => res.json({ ok: true }));
-
-// Routers
-app.use("/auth", authRouter);
-app.use("/barberias", barberiasRouter);
-app.use("/servicios", serviciosRouter);
-app.use("/citas", citasRouter);
-app.use("/suscripciones", suscripcionesRouter);
-
-const port = process.env.PORT || 10000;
-
-const startServer = async () => {
-  console.log("Starting backend...");
-
-  if (process.env.RUN_MIGRATIONS === "true") {
-    console.log("RUN_MIGRATIONS is true. Attempting to run migrations...");
-    try {
-      await ensureDatabase();
-      console.log("Database schema ensured successfully.");
-    } catch (err) {
-      console.error("Error running migrations:", err);
-      // No hacemos process.exit, solo logueamos
-    }
-  } else {
-    console.log("RUN_MIGRATIONS is false. Skipping migrations.");
+// Conexión a PostgreSQL usando DATABASE_URL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
   }
+});
 
-  console.log("About to start server...");
+// Endpoint de prueba
+app.get("/", (req, res) => {
+  res.send("Backend funcionando 🚀");
+});
+
+// CRUD clientes
+app.get("/clientes", async (req, res) => {
   try {
-    app.listen(port, () => {
-      console.log(`Server listening on port ${port}`);
-    });
+    const result = await pool.query("SELECT * FROM clientes");
+    res.json(result.rows);
   } catch (err) {
-    console.error("Error starting server:", err);
+    res.status(500).json({ error: err.message });
   }
-};
+});
 
-// Ejecutar servidor
-startServer();
+app.post("/clientes", async (req, res) => {
+  const { documento, nombres, apellidos, telefono, correo } = req.body;
+  try {
+    const result = await pool.query(
+      "INSERT INTO clientes (documento, nombres, apellidos, telefono, correo) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [documento, nombres, apellidos, telefono, correo]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/clientes/:id", async (req, res) => {
+  const { id } = req.params;
+  const { documento, nombres, apellidos, telefono, correo } = req.body;
+  try {
+    const result = await pool.query(
+      "UPDATE clientes SET documento=$1, nombres=$2, apellidos=$3, telefono=$4, correo=$5 WHERE id=$6 RETURNING *",
+      [documento, nombres, apellidos, telefono, correo, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/clientes/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM clientes WHERE id=$1", [id]);
+    res.json({ message: "Cliente eliminado" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Levantar servidor
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en puerto ${PORT}`);
+});

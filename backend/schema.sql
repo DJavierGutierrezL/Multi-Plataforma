@@ -73,3 +73,16 @@ CREATE TABLE IF NOT EXISTS suscripciones (
 CREATE INDEX IF NOT EXISTS idx_users_barberia_id ON users(barberia_id);
 CREATE INDEX IF NOT EXISTS idx_servicios_barberia_id ON servicios(barberia_id);
 CREATE INDEX IF NOT EXISTS idx_citas_barberia_fecha ON citas(barberia_id, fecha DESC);
+
+
+-- Clientes table (separate from users for CRM)
+CREATE TABLE IF NOT EXISTS clientes (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE,
+  phone TEXT,
+  birth_date DATE,
+  service_history JSONB DEFAULT '[]'::jsonb,
+  preferences TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
