@@ -22,6 +22,9 @@ import KandyAI from './components/KandyAI';
 // Import Icons
 import { MenuIcon } from './components/icons/MenuIcon';
 
+// 👉 Aquí agregamos el log
+console.log("🔗 API_URL desde App.tsx:", import.meta.env.VITE_API_URL);
+
 const generateCssVariables = (settings: ThemeSettings, mode: 'light' | 'dark'): string => {
   const primaryColors: Record<PrimaryColor, { base: string, hover: string, foreground: string }> = {
     [PrimaryColor.Pink]: { base: '340 82% 52%', hover: '340 82% 47%', foreground: '0 0% 100%' },
