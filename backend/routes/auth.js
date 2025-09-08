@@ -8,8 +8,6 @@ interface LoginProps {
   onBackToLanding: () => void;
 }
 
-const BACKEND_URL = "http://localhost:10000"; // Cambia por tu URL de Render en producción
-
 const KandyTitleAnimation = () => (
   <div className="box">
     <div className="title-anim">
@@ -47,7 +45,8 @@ const Login: React.FC<LoginProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      // Usar la URL de tu backend
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL || "http://localhost:10000"}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -59,12 +58,13 @@ const Login: React.FC<LoginProps> = ({
       }
 
       const data = await res.json();
-      // data esperado desde el backend: { id, name, email, role, token }
+      // data esperado desde el backend:
+      // { id, name, email, role, token }
 
       const user: User = {
         id: data.id,
-        firstName: data.name, // ahora usamos name como primer nombre
-        lastName: "",          // dejamos vacío
+        firstName: data.name,  // usamos name en lugar de firstName/lastName
+        lastName: "",
         email: data.email,
         role: data.role,
       };
