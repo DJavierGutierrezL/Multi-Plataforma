@@ -1,50 +1,141 @@
-import { Router } from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { pool } from "../db.js";
+import React, { useState, useEffect } from "react";
+import { User } from "../types";
 
-const router = Router();
+interface LoginProps {
+  onLogin: (user: User, token: string) => void;
+  theme: "light" | "dark";
+  onThemeChange: (theme: "light" | "dark") => void;
+  onBackToLanding: () => void;
+}
 
-router.post("/register", async (req, res) => {
-  const { name, email, password, role = "admin", barberia_id = null } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
-  try {
-    const hashed = await bcrypt.hash(password, 10);
-    const { rows: existing } = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-    if (existing.length) return res.status(409).json({ error: "Email already registered" });
+const KandyTitleAnimation = () => (
+  <div className="box">
+    <div className="title-anim">
+      <span className="block"></span>
+      <h1>
+        Kandy AI<span></span>
+      </h1>
+    </div>
+    <div className="role">
+      <span className="block"></span>
+      <p>Asistente Virtual</p>
+    </div>
+  </div>
+);
 
-    const { rows } = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, barberia_id)
-       VALUES ($1,$2,$3,$4,$5) RETURNING id, name, email, role, barberia_id`,
-      [name, email, hashed, role, barberia_id]
-    );
-    res.status(201).json(rows[0]);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+const Login: React.FC<LoginProps> = ({
+  onLogin,
+  theme,
+  onThemeChange,
+  onBackToLanding,
+}) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "Missing fields" });
-  try {
-    const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    if (!rows.length) return res.status(401).json({ error: "Invalid credentials" });
-    const user = rows[0];
-    const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role, barberia_id: user.barberia_id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-    res.json({ token });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-export default router;
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Error al iniciar sesión");
+      }
+
+      const data = await res.json();
+      // data esperado desde el backend:
+      // { id, firstName, lastName, email, role, token }
+
+      const user: User = {
+        id: data.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        role: data.role,
+      };
+
+      // guardar en localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // notificar al padre
+      onLogin(user, data.token);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="background w-full h-screen overflow-hidden relative">
+      <div className="kandy-container absolute top-8 left-8 z-20">
+        <KandyTitleAnimation />
+      </div>
+
+      <div className="wrapper">
+        <div className="form">
+          <h1 className="title">Iniciar Sesión</h1>
+          <p id="title-Tag-Line">Ingresa tu correo y contraseña</p>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="email"
+              placeholder="Correo electrónico"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="entry email"
+              autoComplete="email"
+              required
+            />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="entry name"
+              autoComplete="current-password"
+              required
+            />
+
+            {error && <p className="error-message">{error}</p>}
+
+            <button type="submit" className="submit" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </button>
+          </form>
+          <p className="mt-4 text-sm text-gray-600">
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onBackToLanding();
+              }}
+              className="font-medium text-purple-600 hover:text-purple-500"
+            >
+              &larr; Volver a la página principal
+            </a>
+          </p>
+        </div>
+        <div className="shadow"></div>
+      </div>
+    </section>
+  );
+};
+
+export default Login;
