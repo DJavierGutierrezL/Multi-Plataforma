@@ -100,12 +100,11 @@ export interface User {
   id: number;
   firstName: string;
   lastName: string;
-  phone: string;
-  username: string;
-  password?: string;
-  role: UserRole;
-  businessId?: number;
+  email: string;   // usamos email como username
+  role: string;    // admin, superadmin, etc.
 }
+
+
 
 export interface Plan {
     id: number;

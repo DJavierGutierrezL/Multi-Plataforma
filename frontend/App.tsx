@@ -185,16 +185,20 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Fetch initial data from backend
+  // Fetch initial data from backend with token
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem("token");
+        const headers: Record<string,string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const [usersRes, businessesRes, plansRes, subscriptionsRes, paymentsRes] = await Promise.all([
-          fetch(`${API_URL}/users`).then(r => r.json()),
-          fetch(`${API_URL}/businesses`).then(r => r.json()),
-          fetch(`${API_URL}/plans`).then(r => r.json()),
-          fetch(`${API_URL}/subscriptions`).then(r => r.json()),
-          fetch(`${API_URL}/payments`).then(r => r.json()),
+          fetch(`${API_URL}/users`, { headers }).then(r => r.json()),
+          fetch(`${API_URL}/businesses`, { headers }).then(r => r.json()),
+          fetch(`${API_URL}/plans`, { headers }).then(r => r.json()),
+          fetch(`${API_URL}/subscriptions`, { headers }).then(r => r.json()),
+          fetch(`${API_URL}/payments`, { headers }).then(r => r.json()),
         ]);
 
         setUsers(usersRes);
@@ -210,9 +214,9 @@ const App: React.FC = () => {
   }, []);
 
   // ------------------- AUTH -------------------
-  const handleLogin = (userId: number) => {
-    const user = users.find(u => u.id === userId);
-    if (user) setCurrentUser(user);
+  const handleLogin = (user: User, token: string) => {
+    setCurrentUser(user);
+    localStorage.setItem("token", token);
   };
 
   const handleLogout = () => {
@@ -220,6 +224,8 @@ const App: React.FC = () => {
     setImpersonatedBusinessId(null);
     setCurrentPage(Page.Dashboard);
     setViewState('landing');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   };
 
   const handleRegister = async (data: RegistrationData) => {
@@ -258,7 +264,6 @@ const App: React.FC = () => {
     if (viewState === 'login') {
       return (
         <Login
-          users={users}
           onLogin={handleLogin}
           theme={theme}
           onThemeChange={setTheme}
@@ -288,7 +293,6 @@ const App: React.FC = () => {
     );
   }
 
-  // ... el resto del renderPage y flujo sigue igual
   return (
     <>
       <ThemeStyleProvider settings={businesses[0]?.themeSettings} mode={theme} />

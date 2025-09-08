@@ -1,37 +1,42 @@
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = import.meta.env.VITE_API_URL;
 
+if (!API_URL) {
+  throw new Error("❌ VITE_API_URL no está definido. Revisa tus variables de entorno.");
+}
+
+// --- CLIENTES ---
 export async function getClients() {
   const res = await fetch(`${API_URL}/clientes`, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch clients");
   return res.json();
 }
 
-export async function createClient(client) {
+export async function createClient(client: any) {
   const res = await fetch(`${API_URL}/clientes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(client),
-    credentials: "include"
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to create client");
   return res.json();
 }
 
-export async function updateClient(id, client) {
+export async function updateClient(id: number, client: any) {
   const res = await fetch(`${API_URL}/clientes/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(client),
-    credentials: "include"
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to update client");
   return res.json();
 }
 
-export async function deleteClient(id) {
+export async function deleteClient(id: number) {
   const res = await fetch(`${API_URL}/clientes/${id}`, {
     method: "DELETE",
-    credentials: "include"
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to delete client");
   return res.json();
