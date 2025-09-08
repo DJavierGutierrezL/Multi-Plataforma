@@ -13,14 +13,11 @@ const dbConfig = {
 
 // Datos del Admin
 const adminData = {
-  firstName: 'Super',
-  lastName: 'Admin',
+  name: 'Super Admin',
   email: 'admin@admin.com',
-  phone: '0000000000',
-  username: 'admin',   // opcional si tu sistema lo usa
+  username: 'admin',
   password: 'Admin123!',
   role: 'admin',
-  businessId: null,
 };
 
 const createAdmin = async () => {
@@ -45,20 +42,17 @@ const createAdmin = async () => {
     const hashedPassword = await bcrypt.hash(adminData.password, 10);
 
     // 3️⃣ Insertar el admin
-    const insertQuery = `
-      INSERT INTO users (name, email, phone, username, password, role, businessId)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+   const insertQuery = `
+      INSERT INTO users (name, email, password, role)
+      VALUES ($1, $2, $3, $4)
       RETURNING *;
     `;
 
     const insertValues = [
-      adminData.name,   // un solo campo de nombre
+      adminData.name,
       adminData.email,
-      adminData.phone,
-      adminData.username,
       hashedPassword,
       adminData.role,
-      adminData.businessId,
     ];
 
     const res = await client.query(insertQuery, insertValues);
