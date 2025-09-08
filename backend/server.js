@@ -1,68 +1,83 @@
 import express from "express";
-import pkg from "pg";
+import pg from "pg";
 import cors from "cors";
-import { ensureDatabase } from "./setup_db.js";
-import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { ensureDatabase } from "./setup_db.js";
 
-const { Pool } = pkg;
+dotenv.config();
+
+const { Pool } = pg;
 const app = express();
 
-app.use(cors());
+// Configurar CORS para tu frontend
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "*",
+}));
+
 app.use(express.json());
 
-// Conexión a PostgreSQL usando DATABASE_URL
+// Conexión a PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
 // Ejecutar migraciones si RUN_MIGRATIONS=true
 if (process.env.RUN_MIGRATIONS === "true") {
   ensureDatabase()
-    .then(() => console.log("✅ Migraciones ejecutadas con éxito"))
+    .then(async () => {
+      console.log("✅ Migraciones ejecutadas con éxito");
+
+      // Crear usuario admin de prueba si no existe
+      const email = "admin@multi.com";
+      const password = "123456";
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const existing = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
+      if (existing.rows.length === 0) {
+        await pool.query(
+          "INSERT INTO users (name, email, password, role) VALUES ($1,$2,$3,$4)",
+          ["Admin", email, hashedPassword, "admin"]
+        );
+        console.log("✅ Usuario admin de prueba creado: admin@multi.com / 123456");
+      }
+    })
     .catch((err) => console.error("❌ Error ejecutando migraciones:", err));
 }
+
+// --- Endpoints ---
 
 // Endpoint de prueba
 app.get("/", (req, res) => {
   res.send("Backend funcionando 🚀");
 });
 
-// ------------------- LOGIN -------------------
+// --- Auth ---
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Correo y contraseña son requeridos" });
-  }
-
   try {
-    const result = await pool.query(
-      'SELECT * FROM "user" WHERE email=$1',
-      [email]
-    );
+    const result = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Usuario no encontrado" });
     }
 
     const user = result.rows[0];
+    const validPassword = await bcrypt.compare(password, user.password);
 
-    // Verificar contraseña
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!validPassword) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
 
-    // Generar token JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "default_secret",
-      { expiresIn: "12h" }
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
     );
 
-    // Devolver datos
     res.json({
       id: user.id,
       name: user.name,
@@ -71,13 +86,12 @@ app.post("/api/auth/login", async (req, res) => {
       token,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ------------------- CRUD CLIENTES -------------------
-app.get("/clientes", async (req, res) => {
+// --- CRUD Clientes ---
+app.get("/api/clientes", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM clientes");
     res.json(result.rows);
@@ -86,11 +100,11 @@ app.get("/clientes", async (req, res) => {
   }
 });
 
-app.post("/clientes", async (req, res) => {
+app.post("/api/clientes", async (req, res) => {
   const { documento, nombres, apellidos, telefono, correo } = req.body;
   try {
     const result = await pool.query(
-      "INSERT INTO clientes (documento, nombres, apellidos, telefono, correo) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      "INSERT INTO clientes (documento, nombres, apellidos, telefono, correo) VALUES ($1,$2,$3,$4,$5) RETURNING *",
       [documento, nombres, apellidos, telefono, correo]
     );
     res.json(result.rows[0]);
@@ -99,7 +113,7 @@ app.post("/clientes", async (req, res) => {
   }
 });
 
-app.put("/clientes/:id", async (req, res) => {
+app.put("/api/clientes/:id", async (req, res) => {
   const { id } = req.params;
   const { documento, nombres, apellidos, telefono, correo } = req.body;
   try {
@@ -113,7 +127,7 @@ app.put("/clientes/:id", async (req, res) => {
   }
 });
 
-app.delete("/clientes/:id", async (req, res) => {
+app.delete("/api/clientes/:id", async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query("DELETE FROM clientes WHERE id=$1", [id]);
@@ -123,7 +137,7 @@ app.delete("/clientes/:id", async (req, res) => {
   }
 });
 
-// ------------------- LEVANTAR SERVIDOR -------------------
+// --- Levantar servidor ---
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
