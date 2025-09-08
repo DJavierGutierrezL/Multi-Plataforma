@@ -19,8 +19,10 @@ export enum AppointmentStatus {
 }
 
 export enum UserRole {
-  SuperAdmin = 'SuperAdmin',
-  User = 'User',
+  Admin = "admin",
+  Empleado = "empleado",
+  Cliente = "cliente",
+  SuperAdmin = "superadmin",  // <- Debe coincidir exactamente
 }
 
 export enum BusinessType {
