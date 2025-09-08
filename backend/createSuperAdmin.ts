@@ -8,70 +8,68 @@ const dbConfig = {
   database: 'multi_plataforma_db',
   password: 'Z5Rit1gO3eCtKpYqkbf4VWAEAkEF5AxB',
   port: 5432,
-  ssl: { rejectUnauthorized: false } // 👈 importante para Render
+  ssl: { rejectUnauthorized: false }, // importante para Render
 };
 
-// Datos del SuperAdmin
-const superAdminData = {
-  name: 'Admin Super', // 👈 un solo campo de nombre
-  email: 'admin@admin.com', // 👈 mejor agregar correo
+// Datos del Admin
+const adminData = {
+  firstName: 'Super',
+  lastName: 'Admin',
+  email: 'admin@admin.com',
   phone: '0000000000',
-  username: 'admin',
-  password: 'Admin123!', // contraseña en texto plano
-  role: 'SuperAdmin',
+  username: 'admin',   // opcional si tu sistema lo usa
+  password: 'Admin123!',
+  role: 'admin',
   businessId: null,
 };
 
-const createSuperAdmin = async () => {
+const createAdmin = async () => {
   const client = new Client(dbConfig);
 
   try {
     await client.connect();
     console.log('Conectado a la base de datos ✅');
 
-    // 1️⃣ Verificar si ya existe un SuperAdmin
+    // 1️⃣ Verificar si ya existe un usuario con ese email
     const checkRes = await client.query(
-      `SELECT * FROM users WHERE role = $1`,
-      [superAdminData.role]
+      `SELECT * FROM users WHERE email = $1`,
+      [adminData.email]
     );
 
     if (checkRes.rows.length > 0) {
-      console.log('⚠️ SuperAdmin ya existe:', checkRes.rows[0].username);
+      console.log('⚠️ Usuario admin ya existe:', checkRes.rows[0].email);
       return;
     }
 
     // 2️⃣ Generar hash de la contraseña
-    const hashedPassword = await bcrypt.hash(superAdminData.password, 10);
+    const hashedPassword = await bcrypt.hash(adminData.password, 10);
 
-    // 3️⃣ Insertar SuperAdmin
-      const insertQuery = `
-        INSERT INTO "user" ("firstName", "lastName", "phone", "username", "password", "role", "businessId")
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *;
-      `;
-
-
-
+    // 3️⃣ Insertar el admin
+    const insertQuery = `
+      INSERT INTO users (name, email, phone, username, password, role, businessId)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+    `;
 
     const insertValues = [
-      superAdminData.name,
-      superAdminData.email,
-      superAdminData.phone,
-      superAdminData.username,
+      adminData.name,   // un solo campo de nombre
+      adminData.email,
+      adminData.phone,
+      adminData.username,
       hashedPassword,
-      superAdminData.role,
-      superAdminData.businessId,
+      adminData.role,
+      adminData.businessId,
     ];
 
     const res = await client.query(insertQuery, insertValues);
-    console.log('✅ SuperAdmin creado:', res.rows[0].username);
+    console.log('✅ Usuario admin creado:', res.rows[0].email);
 
   } catch (err) {
-    console.error('❌ Error creando SuperAdmin:', err);
+    console.error('❌ Error creando admin:', err);
   } finally {
     await client.end();
     console.log('Conexión cerrada');
   }
 };
 
-createSuperAdmin();
+createAdmin();
