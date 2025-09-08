@@ -45,12 +45,14 @@ const Login: React.FC<LoginProps> = ({
     setLoading(true);
 
     try {
-      // Usar la URL de tu backend
-      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL || "http://localhost:10000"}/api/auth/login`, {
+     // Usar la URL de tu backend
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:10000";
+      const res = await fetch(`${backendUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+
 
       if (!res.ok) {
         const err = await res.json();
