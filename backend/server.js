@@ -1,20 +1,20 @@
 import express from "express";
 import pkg from "pg";
 import cors from "cors";
-import { ensureDatabase } from "./setup_db.js"; // 👈 importar migraciones
+import { ensureDatabase } from "./setup_db.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const { Pool } = pkg;
-
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 // Conexión a PostgreSQL usando DATABASE_URL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
 });
 
 // Ejecutar migraciones si RUN_MIGRATIONS=true
@@ -29,7 +29,54 @@ app.get("/", (req, res) => {
   res.send("Backend funcionando 🚀");
 });
 
-// CRUD clientes
+// ------------------- LOGIN -------------------
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Correo y contraseña son requeridos" });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM "user" WHERE email=$1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Usuario no encontrado" });
+    }
+
+    const user = result.rows[0];
+
+    // Verificar contraseña
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Contraseña incorrecta" });
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "default_secret",
+      { expiresIn: "12h" }
+    );
+
+    // Devolver datos
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+// ------------------- CRUD CLIENTES -------------------
 app.get("/clientes", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM clientes");
@@ -76,7 +123,7 @@ app.delete("/clientes/:id", async (req, res) => {
   }
 });
 
-// Levantar servidor
+// ------------------- LEVANTAR SERVIDOR -------------------
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);

@@ -8,13 +8,13 @@ interface LoginProps {
   onBackToLanding: () => void;
 }
 
+const BACKEND_URL = "http://localhost:10000"; // Cambia por tu URL de Render en producción
+
 const KandyTitleAnimation = () => (
   <div className="box">
     <div className="title-anim">
       <span className="block"></span>
-      <h1>
-        Kandy AI<span></span>
-      </h1>
+      <h1>Kandy AI<span></span></h1>
     </div>
     <div className="role">
       <span className="block"></span>
@@ -47,7 +47,7 @@ const Login: React.FC<LoginProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -59,22 +59,21 @@ const Login: React.FC<LoginProps> = ({
       }
 
       const data = await res.json();
-      // data esperado desde el backend:
-      // { id, firstName, lastName, email, role, token }
+      // data esperado desde el backend: { id, name, email, role, token }
 
       const user: User = {
         id: data.id,
-        firstName: data.firstName,
-        lastName: data.lastName,
+        firstName: data.name, // ahora usamos name como primer nombre
+        lastName: "",          // dejamos vacío
         email: data.email,
         role: data.role,
       };
 
-      // guardar en localStorage
+      // Guardar token y usuario en localStorage
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // notificar al padre
+      // Notificar al padre
       onLogin(user, data.token);
     } catch (err: any) {
       setError(err.message);
