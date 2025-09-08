@@ -24,7 +24,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
-// Ejecutar migraciones si RUN_MIGRATIONS=true
+// Ejecutar migraciones solo si es necesario
 if (process.env.RUN_MIGRATIONS === "true") {
   ensureDatabase()
     .then(async () => {
@@ -48,29 +48,18 @@ if (process.env.RUN_MIGRATIONS === "true") {
 }
 
 // --- Endpoints ---
-
-// Endpoint de prueba
-app.get("/", (req, res) => {
-  res.send("Backend funcionando 🚀");
-});
+app.get("/", (req, res) => res.send("Backend funcionando 🚀"));
 
 // --- Auth ---
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
-
   try {
     const result = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Usuario no encontrado" });
-    }
+    if (!result.rows.length) return res.status(401).json({ error: "Usuario no encontrado" });
 
     const user = result.rows[0];
     const validPassword = await bcrypt.compare(password, user.password);
-
-    if (!validPassword) {
-      return res.status(401).json({ error: "Contraseña incorrecta" });
-    }
+    if (!validPassword) return res.status(401).json({ error: "Contraseña incorrecta" });
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
@@ -78,13 +67,7 @@ app.post("/api/auth/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token,
-    });
+    res.json({ id: user.id, name: user.name, email: user.email, role: user.role, token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -137,8 +120,6 @@ app.delete("/api/clientes/:id", async (req, res) => {
   }
 });
 
-// --- Levantar servidor ---
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+// --- Levantar servidor en puerto de Render ---
+const PORT = process.env.PORT;
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
