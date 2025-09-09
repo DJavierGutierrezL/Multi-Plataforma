@@ -4,40 +4,46 @@ if (!API_URL) {
   throw new Error("❌ VITE_API_URL no está definido. Revisa tus variables de entorno.");
 }
 
+// Función helper para agregar headers con JWT
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = localStorage.getItem("token");
+  const headers = {
+    ...(options.headers || {}),
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    // Puedes personalizar los mensajes según el status
+    let errorMessage = "Error en la solicitud";
+    if (res.status === 401) errorMessage = "No autorizado. Por favor inicia sesión.";
+    if (res.status === 404) errorMessage = "Recurso no encontrado";
+    if (res.status === 400) errorMessage = "Solicitud inválida";
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
+
 // --- CLIENTES ---
 export async function getClients() {
-  const res = await fetch(`${API_URL}/clientes`, { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to fetch clients");
-  return res.json();
+  return fetchWithAuth(`${API_URL}/clientes`, { method: "GET" });
 }
 
 export async function createClient(client: any) {
-  const res = await fetch(`${API_URL}/clientes`, {
+  return fetchWithAuth(`${API_URL}/clientes`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(client),
-    credentials: "include",
   });
-  if (!res.ok) throw new Error("Failed to create client");
-  return res.json();
 }
 
 export async function updateClient(id: number, client: any) {
-  const res = await fetch(`${API_URL}/clientes/${id}`, {
+  return fetchWithAuth(`${API_URL}/clientes/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(client),
-    credentials: "include",
   });
-  if (!res.ok) throw new Error("Failed to update client");
-  return res.json();
 }
 
 export async function deleteClient(id: number) {
-  const res = await fetch(`${API_URL}/clientes/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Failed to delete client");
-  return res.json();
+  return fetchWithAuth(`${API_URL}/clientes/${id}`, { method: "DELETE" });
 }

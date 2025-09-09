@@ -47,8 +47,27 @@ if (process.env.RUN_MIGRATIONS === "true") {
     .catch((err) => console.error("❌ Error ejecutando migraciones:", err));
 }
 
+// --- Middleware JWT ---
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: "Token no proporcionado" });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Token inválido" });
+    req.user = user;
+    next();
+  });
+};
+
 // --- Endpoints ---
 app.get("/", (req, res) => res.send("Backend funcionando 🚀"));
+
+// Endpoint de prueba de token
+app.get("/api/protected", authenticateToken, (req, res) => {
+  res.json({ message: "Acceso autorizado", user: req.user });
+});
 
 // --- Auth ---
 app.post("/api/auth/login", async (req, res) => {
@@ -69,21 +88,23 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json({ id: user.id, name: user.name, email: user.email, role: user.role, token });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-// --- CRUD Clientes ---
-app.get("/api/clientes", async (req, res) => {
+// --- CRUD Clientes (protegido) ---
+app.get("/api/clientes", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM clientes");
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-app.post("/api/clientes", async (req, res) => {
+app.post("/api/clientes", authenticateToken, async (req, res) => {
   const { documento, nombres, apellidos, telefono, correo } = req.body;
   try {
     const result = await pool.query(
@@ -92,11 +113,12 @@ app.post("/api/clientes", async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-app.put("/api/clientes/:id", async (req, res) => {
+app.put("/api/clientes/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { documento, nombres, apellidos, telefono, correo } = req.body;
   try {
@@ -106,20 +128,22 @@ app.put("/api/clientes/:id", async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-app.delete("/api/clientes/:id", async (req, res) => {
+app.delete("/api/clientes/:id", authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query("DELETE FROM clientes WHERE id=$1", [id]);
     res.json({ message: "Cliente eliminado" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-// --- Levantar servidor en puerto de Render ---
-const PORT = process.env.PORT;
+// --- Levantar servidor ---
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
