@@ -8,7 +8,9 @@
     "start": "node src/index.js",
     "prisma:migrate": "npx prisma migrate dev --name init",
     "prisma:generate": "npx prisma generate",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "start": "node src/index.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "bcrypt": "^5.1.0",
