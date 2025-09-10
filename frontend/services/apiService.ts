@@ -1,6 +1,7 @@
 import { RegistrationData, User, Business, Profile, Prices, ThemeSettings, SubscriptionStatus, Appointment, Client, Product, Plan, Subscription, Payment } from '../types';
 
-const API_BASE_URL = 'https://multi-plataforma-backend.onrender.com/api';
+// ✅ Aseguramos que la URL siempre termine con /api
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') + '/api';
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('authToken');
