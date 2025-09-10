@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Client } from '../types';
 import Modal from './Modal';
-import { getClients, createClient, updateClient, deleteClient } from '../services/api';
 import { AlertTriangleIcon } from './icons/AlertTriangleIcon';
 
 interface ClientsProps {
@@ -15,21 +14,6 @@ const Clients: React.FC<ClientsProps> = ({ clients, setClients }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentClient, setCurrentClient] = useState<Partial<Client> | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
-
-  // Load clients from API on mount
-  React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await getClients();
-        if (mounted) setClients(data);
-      } catch (e) {
-        console.error('Error loading clients', e);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -63,42 +47,42 @@ const Clients: React.FC<ClientsProps> = ({ clients, setClients }) => {
     }
   };
 
-  const handleSaveClient = async (e: React.FormEvent) => {
+  const handleSaveClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentClient) return;
 
-    const { id, name, email, phone, birthDate, preferences } = currentClient;
+    const { id, name, email, phone, birthDate } = currentClient;
 
     if (!name || !email || !phone) {
         alert('Por favor, rellena los campos de nombre, email y teléfono.');
         return;
     }
-
-    try {
-      if (id) {
-        const updated = await updateClient(id, currentClient);
-        setClients(clients.map(c => c.id === id ? updated : c));
-      } else {
-        const created = await createClient(currentClient);
-        setClients([created, ...clients]);
-      }
-      handleCloseModals();
-    } catch (err) {
-      console.error(err);
-      alert('Error al guardar el cliente');
+    
+    if (id) {
+        // Editing existing client
+        setClients(clients.map(c => c.id === id ? { ...c, ...currentClient } as Client : c));
+    } else {
+        // Adding new client
+        const newClient: Client = {
+            id: Date.now(),
+            name: currentClient.name!,
+            phone: currentClient.phone!,
+            email: currentClient.email!,
+            birthDate: birthDate || '',
+            serviceHistory: currentClient.serviceHistory || [],
+            preferences: currentClient.preferences || '',
+            isNew: true,
+        };
+        setClients([newClient, ...clients]);
     }
+    handleCloseModals();
   };
   
-  const handleDeleteConfirm = async () => {
-    if (!clientToDelete) return;
-    try {
-      await deleteClient(clientToDelete.id);
+  const handleDeleteConfirm = () => {
+    if (clientToDelete) {
       setClients(clients.filter(c => c.id !== clientToDelete.id));
-      handleCloseModals();
-    } catch (err) {
-      console.error(err);
-      alert('Error al eliminar el cliente');
     }
+    handleCloseModals();
   };
 
   return (

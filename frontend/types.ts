@@ -19,10 +19,8 @@ export enum AppointmentStatus {
 }
 
 export enum UserRole {
-  Admin = "admin",
-  Empleado = "empleado",
-  Cliente = "cliente",
-  SuperAdmin = "superadmin",  // <- Debe coincidir exactamente
+  SuperAdmin = 'SuperAdmin',
+  User = 'User',
 }
 
 export enum BusinessType {
@@ -102,11 +100,12 @@ export interface User {
   id: number;
   firstName: string;
   lastName: string;
-  email: string;   // usamos email como username
-  role: string;    // admin, superadmin, etc.
+  phone: string;
+  username: string;
+  password?: string;
+  role: UserRole;
+  businessId?: number;
 }
-
-
 
 export interface Plan {
     id: number;
