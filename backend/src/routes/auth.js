@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const prisma = require('../prismaClient');
-const { sign } = require('../utils/jwt');
+const { sign, verify } = require('../utils/jwt');
 
 const router = express.Router();
 
@@ -71,7 +71,7 @@ router.post('/register', async (req, res) => {
           username: data.user.username,
           email: data.user.email,
           password: hashed,
-          role: data.user.role || 'USER', // 👈 Enum seguro (SUPERADMIN | ADMIN | USER)
+          role: data.user.role || 'USER', // Enum seguro (SUPERADMIN | ADMIN | USER)
           businessId: business.id,
         },
       });
@@ -92,7 +92,7 @@ router.post('/register', async (req, res) => {
       await prismaTx.payment.create({
         data: {
           businessId: business.id,
-          subscriptionId: sub.id, // 👈 ahora obligatorio
+          subscriptionId: sub.id,
           amount: 0,
           date: now,
           planName: basicPlan.name,
@@ -120,6 +120,36 @@ router.post('/register', async (req, res) => {
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/auth/me
+router.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verify(token); // decodifica y valida el token
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        businessId: true,
+      },
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ user });
+  } catch (err) {
+    console.error('Me error:', err);
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 
