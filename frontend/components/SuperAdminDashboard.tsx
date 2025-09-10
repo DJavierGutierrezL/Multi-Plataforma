@@ -1,15 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Business,
-  User,
-  UserRole,
-  BusinessType,
-  PrimaryColor,
-  BackgroundColor,
-  Plan,
-  Subscription,
-  SubscriptionStatus,
-} from '../types';
+import { Business, User, UserRole, BusinessType, PrimaryColor, BackgroundColor, Plan, Subscription, SubscriptionStatus } from '../types';
 import { SunIcon } from './icons/SunIcon';
 import { MoonIcon } from './icons/MoonIcon';
 import { LogOutIcon } from './icons/LogOutIcon';
@@ -46,36 +36,6 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   onThemeChange,
   onImpersonate,
 }) => {
-  const defaultBusiness: Business = {
-    id: 0,
-    subscriptionId: 0,
-    type: BusinessType.NailSalon,
-    profile: { salonName: '', ownerName: '', accountNumber: '' },
-    prices: { 'Manos Semipermanente': 0 },
-    clients: [],
-    appointments: [],
-    products: [],
-    themeSettings: { primaryColor: PrimaryColor.Pink, backgroundColor: BackgroundColor.White },
-  };
-
-  const defaultUser: User = {
-    id: 0,
-    firstName: '',
-    lastName: '',
-    username: '',
-    password: '',
-    phone: '',
-    role: UserRole.User,
-    businessId: undefined,
-  };
-
-  const defaultPlan: Partial<Plan> = {
-    id: 0,
-    name: '',
-    price: 0,
-    features: '',
-  };
-
   const [isBusinessModalOpen, setIsBusinessModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isDeleteBusinessModalOpen, setIsDeleteBusinessModalOpen] = useState(false);
@@ -83,26 +43,27 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isDeletePlanModalOpen, setIsDeletePlanModalOpen] = useState(false);
 
-  const [currentBusiness, setCurrentBusiness] = useState<Business>(defaultBusiness);
-  const [currentUser, setCurrentUser] = useState<User>(defaultUser);
+  const [currentBusiness, setCurrentBusiness] = useState<Partial<Business> | null>(null);
+  const [currentUser, setCurrentUser] = useState<Partial<User> | null>(null);
   const [businessToDelete, setBusinessToDelete] = useState<Business | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [currentPlan, setCurrentPlan] = useState<Partial<Plan>>(defaultPlan);
+  const [currentPlan, setCurrentPlan] = useState<Partial<Plan> | null>(null);
   const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
 
   // ----- Modals -----
-  const handleOpenBusinessModal = (business?: Business) => {
-    setCurrentBusiness(business || defaultBusiness);
+  const handleOpenBusinessModal = (business: Partial<Business> | null = null) => {
+    setCurrentBusiness(business || { profile: {} });
     setIsBusinessModalOpen(true);
   };
 
-  const handleOpenUserModal = (user?: User) => {
-    setCurrentUser(user ? { ...user, password: '' } : defaultUser);
+  const handleOpenUserModal = (user: Partial<User> | null = null) => {
+    setCurrentUser(user ? { ...user, password: '' } : {});
     setIsUserModalOpen(true);
   };
 
-  const handleOpenPlanModal = (plan?: Partial<Plan>) => {
-    setCurrentPlan(plan || defaultPlan);
+  const handleOpenPlanModal = (plan: Partial<Plan> | null = null) => {
+    const planWithStringFeatures = plan ? { ...plan, features: plan.features?.join('\n') } : {};
+    setCurrentPlan(planWithStringFeatures || {});
     setIsPlanModalOpen(true);
   };
 
@@ -128,63 +89,113 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
     setIsDeleteUserModalOpen(false);
     setIsPlanModalOpen(false);
     setIsDeletePlanModalOpen(false);
-    setCurrentBusiness(defaultBusiness);
-    setCurrentUser(defaultUser);
+    setCurrentBusiness(null);
+    setCurrentUser(null);
     setBusinessToDelete(null);
     setUserToDelete(null);
-    setCurrentPlan(defaultPlan);
+    setCurrentPlan(null);
     setPlanToDelete(null);
   };
 
-  // ----- Save Handlers -----
+  // ----- Save Business -----
   const handleSaveBusiness = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentBusiness.profile.salonName || !currentBusiness.type) {
-      alert('Completa el nombre y tipo de negocio.');
+    if (!currentBusiness || !currentBusiness.profile?.salonName || !currentBusiness.type) {
+      alert('Por favor completa nombre y tipo de negocio.');
       return;
     }
 
     if (currentBusiness.id) {
       setBusinesses(
-        businesses.map((b) => (b.id === currentBusiness.id ? currentBusiness : b))
+        businesses.map((b) => (b.id === currentBusiness.id ? (currentBusiness as Business) : b))
       );
     } else {
-      setBusinesses([...businesses, { ...currentBusiness, id: Date.now() }]);
+      const newBusiness: Business = {
+        id: Date.now(),
+        subscriptionId: 0,
+        type: currentBusiness.type,
+        profile: {
+          salonName: currentBusiness.profile?.salonName || '',
+          ownerName: currentBusiness.profile?.ownerName || '',
+          accountNumber: currentBusiness.profile?.accountNumber || '',
+        },
+        prices:
+          currentBusiness.type === BusinessType.NailSalon
+            ? { 'Manos Semipermanente': 0 }
+            : { 'Corte de Cabello': 0 },
+        clients: [],
+        appointments: [],
+        products: [],
+        themeSettings: {
+          primaryColor:
+            currentBusiness.type === BusinessType.NailSalon ? PrimaryColor.Pink : PrimaryColor.Blue,
+          backgroundColor: BackgroundColor.White,
+        },
+      };
+      setBusinesses([...businesses, newBusiness]);
     }
     handleCloseModals();
   };
 
+  // ----- Save User -----
   const handleSaveUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser.firstName || !currentUser.lastName || !currentUser.username) {
-      alert('Completa nombre, apellido y usuario.');
-      return;
-    }
-
-    if (!currentUser.password && currentUser.id === 0) {
-      alert('La contraseña es obligatoria para nuevos usuarios.');
+    if (!currentUser || !currentUser.firstName || !currentUser.lastName || !currentUser.username) {
+      alert('Por favor completa nombre, apellido y usuario.');
       return;
     }
 
     if (currentUser.id) {
-      setUsers(users.map((u) => (u.id === currentUser.id ? currentUser : u)));
+      const originalUser = users.find((u) => u.id === currentUser.id);
+      const userToSave = { ...originalUser, ...currentUser } as User;
+      if (!currentUser.password) {
+        userToSave.password = originalUser?.password;
+      }
+      setUsers(users.map((u) => (u.id === currentUser.id ? userToSave : u)));
     } else {
-      setUsers([...users, { ...currentUser, id: Date.now() }]);
+      if (!currentUser.password) {
+        alert('La contraseña es obligatoria para nuevos usuarios.');
+        return;
+      }
+      const newUser: User = {
+        id: Date.now(),
+        firstName: currentUser.firstName,
+        lastName: currentUser.lastName,
+        phone: currentUser.phone || '',
+        username: currentUser.username,
+        password: currentUser.password,
+        role: UserRole.User,
+        businessId: currentUser.businessId,
+      };
+      setUsers([...users, newUser]);
     }
     handleCloseModals();
   };
 
+  // ----- Save Plan -----
   const handleSavePlan = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPlan.name || currentPlan.price === undefined) {
-      alert('Completa nombre y precio del plan.');
+    if (!currentPlan || !currentPlan.name || currentPlan.price === undefined) {
+      alert('Por favor completa nombre y precio del plan.');
       return;
     }
 
-    if (currentPlan.id) {
-      setPlans(plans.map((p) => (p.id === currentPlan.id ? currentPlan as Plan : p)));
+    const planToSave: Partial<Plan> = {
+      ...currentPlan,
+      features:
+        (currentPlan.features as unknown as string)?.split('\n').filter((f) => f.trim() !== '') || [],
+    };
+
+    if (planToSave.id) {
+      setPlans(plans.map((p) => (p.id === planToSave.id ? (planToSave as Plan) : p)));
     } else {
-      setPlans([...plans, { ...currentPlan, id: Date.now() } as Plan]);
+      const newPlan: Plan = {
+        id: Date.now(),
+        name: planToSave.name!,
+        price: planToSave.price!,
+        features: planToSave.features!,
+      };
+      setPlans([...plans, newPlan]);
     }
     handleCloseModals();
   };
@@ -224,16 +235,19 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
         <h2>Usuarios</h2>
         <button onClick={() => handleOpenUserModal()}>Agregar Usuario</button>
         <ul>
-          {users.filter(u => u.role !== UserRole.SuperAdmin).map(u => {
-            const assignedBusiness = businesses.find(b => b.id === u.businessId);
-            return (
-              <li key={u.id}>
-                {u.firstName} {u.lastName} - {u.username} - {assignedBusiness?.profile?.salonName || 'Ninguno'}
-                <button onClick={() => handleOpenUserModal(u)}>Editar</button>
-                <button onClick={() => handleOpenDeleteUserModal(u)}>Eliminar</button>
-              </li>
-            );
-          })}
+          {users
+            .filter((u) => u.role !== UserRole.SuperAdmin)
+            .map((u) => {
+              const assignedBusiness = businesses.find((b) => b.id === u.businessId);
+              const salonName = assignedBusiness?.profile?.salonName || 'Ninguno';
+              return (
+                <li key={u.id}>
+                  {u.firstName} {u.lastName} - {u.username} - {salonName}
+                  <button onClick={() => handleOpenUserModal(u)}>Editar</button>
+                  <button onClick={() => handleOpenDeleteUserModal(u)}>Eliminar</button>
+                </li>
+              );
+            })}
         </ul>
       </section>
 
@@ -241,7 +255,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
         <h2>Negocios</h2>
         <button onClick={() => handleOpenBusinessModal()}>Agregar Negocio</button>
         <ul>
-          {businesses.map(b => (
+          {businesses.map((b) => (
             <li key={b.id}>
               {b.profile?.salonName || 'Sin nombre'} - {b.type}
               <button onClick={() => handleOpenBusinessModal(b)}>Editar</button>
@@ -255,7 +269,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
         <h2>Planes</h2>
         <button onClick={() => handleOpenPlanModal()}>Agregar Plan</button>
         <ul>
-          {plans.map(p => (
+          {plans.map((p) => (
             <li key={p.id}>
               {p.name} - ${p.price}
               <button onClick={() => handleOpenPlanModal(p)}>Editar</button>
@@ -271,18 +285,17 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           <form onSubmit={handleSaveBusiness}>
             <input
               type="text"
-              placeholder="Nombre del salón"
               value={currentBusiness.profile?.salonName || ''}
               onChange={(e) =>
-                setCurrentBusiness(prev => ({
-                  ...prev!,
-                  profile: { ...prev!.profile, salonName: e.target.value },
-                }))
+                setCurrentBusiness((prev) => ({ ...prev!, profile: { ...prev!.profile, salonName: e.target.value } }))
               }
+              placeholder="Nombre del salón"
             />
             <select
-              value={currentBusiness.type}
-              onChange={e => setCurrentBusiness(prev => ({ ...prev!, type: e.target.value as BusinessType }))}
+              value={currentBusiness.type || ''}
+              onChange={(e) =>
+                setCurrentBusiness((prev) => ({ ...prev!, type: e.target.value as BusinessType }))
+              }
             >
               <option value={BusinessType.NailSalon}>Nail Salon</option>
               <option value={BusinessType.BarberShop}>Barber Shop</option>
@@ -298,38 +311,56 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
             <input
               type="text"
               placeholder="Nombre"
-              value={currentUser.firstName}
-              onChange={e => setCurrentUser(prev => ({ ...prev!, firstName: e.target.value }))}
+              value={currentUser.firstName || ''}
+              onChange={(e) => setCurrentUser((prev) => ({ ...prev!, firstName: e.target.value }))}
             />
             <input
               type="text"
               placeholder="Apellido"
-              value={currentUser.lastName}
-              onChange={e => setCurrentUser(prev => ({ ...prev!, lastName: e.target.value }))}
+              value={currentUser.lastName || ''}
+              onChange={(e) => setCurrentUser((prev) => ({ ...prev!, lastName: e.target.value }))}
             />
             <input
               type="text"
               placeholder="Usuario"
-              value={currentUser.username}
-              onChange={e => setCurrentUser(prev => ({ ...prev!, username: e.target.value }))}
+              value={currentUser.username || ''}
+              onChange={(e) => setCurrentUser((prev) => ({ ...prev!, username: e.target.value }))}
             />
             <input
               type="password"
               placeholder="Contraseña"
-              value={currentUser.password}
-              onChange={e => setCurrentUser(prev => ({ ...prev!, password: e.target.value }))}
+              value={currentUser.password || ''}
+              onChange={(e) => setCurrentUser((prev) => ({ ...prev!, password: e.target.value }))}
             />
             <select
               value={currentUser.businessId || ''}
-              onChange={e => setCurrentUser(prev => ({ ...prev!, businessId: Number(e.target.value) }))}
+              onChange={(e) => setCurrentUser((prev) => ({ ...prev!, businessId: Number(e.target.value) }))}
             >
               <option value="">Sin asignar</option>
-              {businesses.map(b => (
-                <option key={b.id} value={b.id}>{b.profile?.salonName || 'Sin nombre'}</option>
+              {businesses.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.profile?.salonName || 'Sin nombre'}
+                </option>
               ))}
             </select>
             <button type="submit">Guardar</button>
           </form>
+        </Modal>
+      )}
+
+      {isDeleteBusinessModalOpen && businessToDelete && (
+        <Modal title="Eliminar Negocio" onClose={handleCloseModals}>
+          <p>¿Estás seguro de eliminar {businessToDelete.profile?.salonName || 'este negocio'}?</p>
+          <button onClick={handleDeleteBusinessConfirm}>Eliminar</button>
+        </Modal>
+      )}
+
+      {isDeleteUserModalOpen && userToDelete && (
+        <Modal title="Eliminar Usuario" onClose={handleCloseModals}>
+          <p>
+            ¿Estás seguro de eliminar {userToDelete.firstName} {userToDelete.lastName}?
+          </p>
+          <button onClick={handleDeleteUserConfirm}>Eliminar</button>
         </Modal>
       )}
 
@@ -340,35 +371,21 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
               type="text"
               placeholder="Nombre del plan"
               value={currentPlan.name || ''}
-              onChange={e => setCurrentPlan(prev => ({ ...prev!, name: e.target.value }))}
+              onChange={(e) => setCurrentPlan((prev) => ({ ...prev!, name: e.target.value }))}
             />
             <input
               type="number"
               placeholder="Precio"
               value={currentPlan.price || 0}
-              onChange={e => setCurrentPlan(prev => ({ ...prev!, price: Number(e.target.value) }))}
+              onChange={(e) => setCurrentPlan((prev) => ({ ...prev!, price: Number(e.target.value) }))}
             />
             <textarea
               placeholder="Características (una por línea)"
               value={(currentPlan.features as unknown as string) || ''}
-              onChange={e => setCurrentPlan(prev => ({ ...prev!, features: e.target.value }))}
+              onChange={(e) => setCurrentPlan((prev) => ({ ...prev!, features: e.target.value }))}
             />
             <button type="submit">Guardar</button>
           </form>
-        </Modal>
-      )}
-
-      {isDeleteBusinessModalOpen && businessToDelete && (
-        <Modal title="Eliminar Negocio" onClose={handleCloseModals}>
-          <p>¿Eliminar {businessToDelete.profile?.salonName || 'este negocio'}?</p>
-          <button onClick={handleDeleteBusinessConfirm}>Eliminar</button>
-        </Modal>
-      )}
-
-      {isDeleteUserModalOpen && userToDelete && (
-        <Modal title="Eliminar Usuario" onClose={handleCloseModals}>
-          <p>¿Eliminar {userToDelete.firstName} {userToDelete.lastName}?</p>
-          <button onClick={handleDeleteUserConfirm}>Eliminar</button>
         </Modal>
       )}
     </div>
