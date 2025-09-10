@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const prisma = require('../prismaClient');
 const { sign } = require('../utils/jwt');
 
