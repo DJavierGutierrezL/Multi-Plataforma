@@ -1,7 +1,7 @@
 import { RegistrationData, User, Business, Profile, Prices, ThemeSettings, SubscriptionStatus, Appointment, Client, Product, Plan, Subscription, Payment } from '../types';
 
-// ✅ Aseguramos que la URL siempre termine con /api
-const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') + '/api';
+// Agregamos '/api' aquí para que todas las llamadas sean correctas
+const API_BASE_URL = import.meta.env.VITE_API_URL + '/api';
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('authToken');
@@ -55,7 +55,6 @@ export const getBusinessData = async (businessId: number): Promise<{ business: B
     return fetchWithAuth(`/businesses/${businessId}/data`);
 };
 
-
 // --- DATA MUTATION ---
 
 // Business Settings
@@ -71,7 +70,7 @@ export const updateThemeSettings = async (businessId: number, settings: ThemeSet
     return fetchWithAuth(`/businesses/${businessId}/theme`, { method: 'PUT', body: JSON.stringify(settings) });
 };
 
-// Business Data Sync (simple approach for now)
+// Business Data Sync
 export const syncAppointments = async (businessId: number, appointments: Appointment[]): Promise<Appointment[]> => {
     return fetchWithAuth(`/businesses/${businessId}/appointments`, { method: 'PUT', body: JSON.stringify(appointments) });
 };
