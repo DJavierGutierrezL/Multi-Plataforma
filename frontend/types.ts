@@ -79,14 +79,15 @@ export interface Appointment {
 }
 
 export interface Client {
-  id: number;
-  name: string;
-  phone: string;
-  email: string;
-  birthDate?: string; // YYYY-MM-DD
-  serviceHistory: string[];
-  preferences?: string;
-  isNew?: boolean;
+    id: number;
+    firstName: string;
+    lastName?: string;
+    phone: string;
+    email?: string;
+    notes?: string;
+    business_id: number;
+    created_at: string;
+    birth_date?: string; // <-- AÑADIR ESTA LÍNEA
 }
 
 export interface Product {
