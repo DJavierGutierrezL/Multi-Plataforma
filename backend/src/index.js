@@ -1,11 +1,11 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); // <-- CORRECCIÓN #1: Importar el paquete correctamente.
+const cors = require('cors');
 
 const app = express();
 
 // Middlewares
-app.use(cors());         // Ahora esto funcionará y habilitará CORS.
+app.use(cors());
 app.use(express.json());
 
 // Ruta de prueba
@@ -24,8 +24,12 @@ apiRouter.use('/auth', authRoutes);
 const businessRoutes = require('./routes/businessRoutes');
 apiRouter.use('/businesses', businessRoutes);
 
+// --- INICIO DE LA MODIFICACIÓN ---
+// 1. Requerimos el nuevo archivo de rutas de admin
 const adminRoutes = require('./routes/adminRoutes');
+// 2. Le decimos a la API que use este archivo para todas las rutas que empiecen con /admin
 apiRouter.use('/admin', adminRoutes);
+// --- FIN DE LA MODIFICACIÓN ---
 
 const userRoutes = require('./routes/userRoutes');
 apiRouter.use('/users', userRoutes);
@@ -37,16 +41,16 @@ const subscriptionRoutes = require('./routes/subscriptionRoutes');
 apiRouter.use('/subscriptions', subscriptionRoutes);
 
 const clientRoutes = require('./routes/clientRoutes');
-apiRouter.use('/clients', clientRoutes); // <-- CORRECCIÓN #2: Usando apiRouter.
+apiRouter.use('/clients', clientRoutes);
 
 const serviceRoutes = require('./routes/serviceRoutes');
-apiRouter.use('/services', serviceRoutes); // <-- CORRECCIÓN #2: Usando apiRouter.
+apiRouter.use('/services', serviceRoutes);
 
 const appointmentRoutes = require('./routes/appointmentRoutes');
-apiRouter.use('/appointments', appointmentRoutes); // <-- CORRECCIÓN #2: Usando apiRouter.
+apiRouter.use('/appointments', appointmentRoutes);
 
 const aiRoutes = require('./routes/aiRoutes');
-apiRouter.use('/ai', aiRoutes); // <-- CORRECCIÓN #2: Usando apiRouter.
+apiRouter.use('/ai', aiRoutes);
 
 
 // --- Iniciar el servidor ---

@@ -174,18 +174,52 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
         }
     };
     
-    const handleDeleteBusinessConfirm = () => {
-        if (!businessToDelete) return;
+    const handleDeleteBusinessConfirm = async () => { // <-- Convertir a async
+    if (!businessToDelete) return;
+
+    try {
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // 1. Llamamos a la API para borrar en el backend
+        await apiService.deleteBusiness(businessToDelete.id);
+
+        // 2. Si tiene éxito, actualizamos el estado del frontend
         setBusinesses(businesses.filter(b => b.id !== businessToDelete.id));
         setUsers(users.filter(u => u.businessId !== businessToDelete.id && u.role !== UserRole.SuperAdmin));
+        
+        alert('Negocio eliminado con éxito.');
+        // --- FIN DE LA MODIFICACIÓN ---
+
+    } catch (error) {
+        console.error("Error al eliminar el negocio:", error);
+        alert("Hubo un error al eliminar el negocio.");
+    } finally {
+        // 3. Cerramos el modal independientemente del resultado
         handleCloseModals();
-    };
+    }
+};
     
-    const handleDeleteUserConfirm = () => {
-        if (!userToDelete) return;
+    const handleDeleteUserConfirm = async () => { // <-- Convertir a async
+    if (!userToDelete) return;
+
+    try {
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // 1. Llamamos a la API para borrar el usuario en el backend
+        await apiService.deleteUser(userToDelete.id);
+
+        // 2. Si tiene éxito, actualizamos el estado del frontend
         setUsers(users.filter(u => u.id !== userToDelete.id));
+        
+        alert('Usuario eliminado con éxito.');
+        // --- FIN DE LA MODIFICACIÓN ---
+
+    } catch (error) {
+        console.error("Error al eliminar el usuario:", error);
+        alert("Hubo un error al eliminar el usuario.");
+    } finally {
+        // 3. Cerramos el modal
         handleCloseModals();
-    };
+    }
+};
 
     const handleDeletePlanConfirm = () => {
         if (!planToDelete) return;
@@ -194,12 +228,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
     };
 
     const BusinessTypeIcon = ({ type }: { type: BusinessType }) => {
-        switch (type) {
-            case BusinessType.NailSalon: return <AnimatedNailSalonLogo className="w-10 h-10 text-base" />;
-            case BusinessType.Barbershop: return <BarberPoleIcon className="w-8 h-8" />;
-            default: return <BuildingIcon className="w-8 h-8 text-gray-500" />;
-        }
-    };
+    switch (type) {
+        // --- INICIO DE LA MODIFICACIÓN ---
+        case BusinessType.NailSalon:
+            // Cambiamos el logo animado por tu imagen estática
+            return <img src="/logoManicuristas.png" alt="Logo de Salón de Uñas" className="w-10 h-10" />;
+        // --- FIN DE LA MODIFICACIÓN ---
+        
+        case BusinessType.Barbershop:
+            return <img src="/logoTuboBarberia.png" alt="Logo de Barbería" className="w-10 h-10 rounded-md" />;
+        
+        default: 
+            return <BuildingIcon className="w-8 h-8 text-gray-500" />;
+    }
+};
     
     const getStatusBadge = (status?: SubscriptionStatus) => {
         switch (status) {
@@ -220,9 +262,15 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-            <header className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
+            <header className="bg-white dark:bg-black shadow-md p-4 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                    <SalonLogoIcon salonName="Kandy" className="w-8 h-8" />
+                    {/* --- INICIO DE LA MODIFICACIÓN --- */}
+                    <img 
+                        src="/logoAsistenteVirtual.gif" 
+                        alt="Logo Kandy AI" 
+                        className="w-10 h-10" // Puedes ajustar el tamaño si lo necesitas
+                    />
+                    {/* --- FIN DE LA MODIFICACIÓN --- */}
                     <h1 className="text-2xl font-bold text-pink-600 dark:text-pink-400">Panel de SuperAdmin</h1>
                 </div>
                 <div className="flex items-center space-x-4">

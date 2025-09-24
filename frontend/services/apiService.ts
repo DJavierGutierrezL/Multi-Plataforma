@@ -70,10 +70,6 @@ export const updatePrices = async (businessId: number, prices: Prices): Promise<
     return fetchWithAuth(`/businesses/${businessId}/prices`, { method: 'PUT', body: JSON.stringify(prices) });
 };
 
-export const updateThemeSettings = async (businessId: number, settings: ThemeSettings): Promise<ThemeSettings> => {
-    return fetchWithAuth(`/businesses/${businessId}/theme`, { method: 'PUT', body: JSON.stringify(settings) });
-};
-
 // Business Data Sync (simple approach for now)
 export const syncAppointments = async (businessId: number, appointments: Appointment[]): Promise<Appointment[]> => {
     return fetchWithAuth(`/businesses/${businessId}/appointments`, { method: 'PUT', body: JSON.stringify(appointments) });
@@ -115,6 +111,12 @@ export const createUser = async (userData: Partial<User>): Promise<User> => {
         method: 'POST',
         body: JSON.stringify(userData),
     });
+};
+
+export const deleteUser = async (userId: number): Promise<void> => {
+  return fetchWithAuth(`/users/${userId}`, {
+    method: 'DELETE',
+  });
 };
 
 export const createPlan = async (planData: Partial<Plan>): Promise<Plan> => {
@@ -213,10 +215,17 @@ export const updateAppointment = async (appointmentId: number, appointmentData: 
     });
 };
 
-export const generateAiMessage = async (clientName: string, messageType: string, businessName: string): Promise<{ generatedMessage: string }> => {
+export const updateThemeSettings = async (settings: ThemeSettings): Promise<ThemeSettings> => {
+    return fetchWithAuth(`/businesses/theme`, { 
+        method: 'PUT', 
+        body: JSON.stringify(settings) 
+    });
+};
+
+export const generateAiMessage = async (clientId: number, messageType: string, businessName: string): Promise<{ generatedMessage: string }> => {
     return fetchWithAuth('/ai/generate-message', {
         method: 'POST',
-        body: JSON.stringify({ clientName, messageType, businessName }),
+        body: JSON.stringify({ clientId, messageType, businessName }),
     });
-}
+};
 

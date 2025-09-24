@@ -4,7 +4,7 @@ const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-// Función auxiliar para formatear clientes y mantener el código limpio
+// Función auxiliar para formatear clientes a camelCase
 const formatClient = (client) => ({
     id: client.id,
     firstName: client.first_name,
@@ -17,12 +17,12 @@ const formatClient = (client) => ({
     birthDate: client.birth_date
 });
 
-// GET /api/clients -> Obtener todos los clientes del negocio del usuario
+// GET /api/clients -> Obtener todos los clientes del negocio
 router.get('/', verifyToken, async (req, res) => {
     const businessId = req.user.businessId;
     try {
         const { rows } = await db.query('SELECT * FROM clients WHERE business_id = $1 ORDER BY first_name ASC', [businessId]);
-        res.json(rows.map(formatClient)); // <-- Usamos la función de formato
+        res.json(rows.map(formatClient)); // <-- Usamos la función para asegurar consistencia
     } catch (error) {
         console.error("Error al obtener clientes:", error);
         res.status(500).json({ message: "Error interno del servidor" });
@@ -32,7 +32,7 @@ router.get('/', verifyToken, async (req, res) => {
 // POST /api/clients -> Crear un nuevo cliente
 router.post('/', verifyToken, async (req, res) => {
     const businessId = req.user.businessId;
-    const { firstName, lastName, phone, email, notes, birthDate } = req.body; // <-- Recibimos camelCase
+    const { firstName, lastName, phone, email, notes, birthDate } = req.body;
 
     if (!firstName || !phone) {
         return res.status(400).json({ message: "El nombre y el teléfono son obligatorios." });
@@ -44,15 +44,8 @@ router.post('/', verifyToken, async (req, res) => {
             RETURNING *;
         `;
         const { rows } = await db.query(query, [firstName, lastName, phone, email, notes, businessId, birthDate || null]);
-        
-        // --- CORRECCIÓN ---
-        // Formateamos la respuesta antes de enviarla
-        res.status(201).json(formatClient(rows[0]));
-
+        res.status(201).json(formatClient(rows[0])); // <-- Formateamos la respuesta
     } catch (error) {
-        if (error.code === '23505') {
-            return res.status(409).json({ message: "Un cliente con este número de teléfono ya existe." });
-        }
         console.error("Error al crear cliente:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
@@ -61,7 +54,7 @@ router.post('/', verifyToken, async (req, res) => {
 // PUT /api/clients/:id -> Actualizar un cliente existente
 router.put('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
-    const { firstName, lastName, phone, email, notes, birthDate } = req.body; // <-- Recibimos camelCase
+    const { firstName, lastName, phone, email, notes, birthDate } = req.body;
     const businessId = req.user.businessId;
     try {
         const query = `
@@ -73,48 +66,27 @@ router.put('/:id', verifyToken, async (req, res) => {
         const { rows } = await db.query(query, [firstName, lastName, phone, email, notes, birthDate || null, id, businessId]);
         
         if (rows.length === 0) {
-            return res.status(404).json({ message: "Cliente no encontrado o no pertenece a tu negocio." });
+            return res.status(404).json({ message: "Cliente no encontrado." });
         }
-        
-        // --- CORRECCIÓN ---
-        // Formateamos la respuesta antes de enviarla
-        res.json(formatClient(rows[0]));
-
+        res.json(formatClient(rows[0])); // <-- Formateamos la respuesta
     } catch (error) {
         console.error("Error al actualizar cliente:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
 
-// DELETE /api/clients/:id (sin cambios, no devuelve un cliente)
+// DELETE /api/clients/:id -> Eliminar un cliente
 router.delete('/:id', verifyToken, async (req, res) => {
-    console.log("--- INICIANDO PETICIÓN DELETE /api/clients/:id ---");
     const { id } = req.params;
     const businessId = req.user.businessId;
-
-    console.log(`ID de cliente a eliminar: ${id}, del negocio: ${businessId}`);
-
-    if (!id || !businessId) {
-        console.log("Error: Falta el ID del cliente o del negocio.");
-        return res.status(400).json({ message: "Falta información." });
-    }
-
     try {
-        console.log("Ejecutando consulta DELETE en la base de datos...");
-        const query = `DELETE FROM clients WHERE id = $1 AND business_id = $2;`;
-        const result = await db.query(query, [id, businessId]);
-        console.log("Consulta completada. Filas afectadas:", result.rowCount);
-
+        const result = await db.query('DELETE FROM clients WHERE id = $1 AND business_id = $2', [id, businessId]);
         if (result.rowCount === 0) {
-            console.log("Advertencia: No se encontró el cliente para eliminar. Devolviendo 404.");
             return res.status(404).json({ message: "Cliente no encontrado." });
         }
-
-        console.log("Éxito. Enviando respuesta 204 (sin contenido).");
         res.status(204).send();
-
     } catch (error) {
-        console.error("--- ERROR CRÍTICO AL ELIMINAR ---", error);
+        console.error("Error al eliminar cliente:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });

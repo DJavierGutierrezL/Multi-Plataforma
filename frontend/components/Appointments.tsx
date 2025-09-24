@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Client, Service } from '../types';
+import { Client, Service, Appointment, AppointmentStatus } from '../types';
 import Modal from './Modal';
 import { PlusIcon } from './icons/PlusIcon';
 import { TrashIcon } from './icons/TrashIcon';
+
 
 // Definimos un tipo para las citas que vienen con datos del cliente
 interface AppointmentWithClient extends Appointment {
@@ -29,7 +30,9 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         appointmentDate: new Date().toISOString().split('T')[0],
         appointmentTime: '10:00',
         serviceIds: [] as number[],
-        notes: ''
+        notes: '',
+        // --- CORRECCIÓN #1: Añadir 'cost' al estado inicial del formulario de creación ---
+        cost: 0 
     });
 
     const [editFormState, setEditFormState] = useState<any | null>(null);
@@ -50,6 +53,20 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
             setEditFormState(null);
         }
     }, [viewingAppointment]);
+
+    // --- CORRECCIÓN #2: Añadir useEffect para calcular el costo en el MODAL DE CREACIÓN ---
+    useEffect(() => {
+        if (formState.serviceIds.length > 0 && services.length > 0) {
+            const totalCost = formState.serviceIds.reduce((total, serviceId) => {
+                const service = services.find(s => s.id === serviceId);
+                return total + (service ? Number(service.price) : 0);
+            }, 0);
+            setFormState(prev => ({ ...prev, cost: totalCost }));
+        } else {
+            setFormState(prev => ({ ...prev, cost: 0 }));
+        }
+    }, [formState.serviceIds, services]);
+
 
     // Efecto para calcular el costo total dinámicamente en el modal de edición
     useEffect(() => {
@@ -86,14 +103,14 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     };
     
     const getStatusClasses = (status: string) => {
-        switch (status) {
-            case 'Scheduled': return 'bg-pink-600';
-            case 'Completed': return 'bg-green-600';
-            case 'Canceled': return 'bg-red-600';
-            case 'Pending': return 'bg-yellow-500 text-black';
-            default: return 'bg-gray-500';
-        }
-    };
+    switch (status) {
+        case AppointmentStatus.Scheduled: return 'bg-pink-500 text-white';
+        case AppointmentStatus.Completed: return 'bg-blue-500 text-white';
+        case AppointmentStatus.Canceled: return 'bg-red-600 text-white';
+        case AppointmentStatus.PaymentPending: return 'bg-orange-500 text-white';
+        default: return 'bg-gray-500 text-white';
+    }
+};
     
     const getStatusTextClasses = (status: string) => {
         return (status === 'Pending') ? 'text-black' : 'text-white';
@@ -102,7 +119,8 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     const handleCloseModal = () => {
         setIsCreateModalOpen(false);
         setViewingAppointment(null);
-        setFormState({ clientId: '', appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: '10:00', serviceIds: [], notes: '' });
+        // --- CORRECCIÓN #3: Resetear el estado incluyendo el costo ---
+        setFormState({ clientId: '', appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: '10:00', serviceIds: [], notes: '', cost: 0 });
     };
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -132,6 +150,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
             alert('Por favor, selecciona un cliente y al menos un servicio.');
             return;
         }
+        // Ahora `formState` ya incluye el costo calculado
         await onCreateAppointment({ ...formState, clientId: parseInt(formState.clientId) });
         handleCloseModal();
     };
@@ -169,8 +188,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
 
     const selectedDayAppointments = filterAndSortAppointments(appointments, selectedDate);
 
-    // --- RENDERIZADO DEL COMPONENTE ---
-    // (Tu JSX aquí, sin cambios, ya que la lógica del estado es lo que se corrige)
+    // --- RENDERIZADO DEL COMPONENTE (SIN CAMBIOS) ---
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
@@ -227,16 +245,21 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     <form onSubmit={handleSaveAppointment} className="space-y-4">
         <div>
             <label className="block text-sm font-medium mb-1">Cliente</label>
-            <select name="clientId" value={formState.clientId} onChange={handleFormChange} required className="w-full p-2 border rounded-lg bg-input text-foreground">
+            <select name="clientId" value={formState.clientId} onChange={handleFormChange} required 
+                className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                style={{ backgroundColor: 'hsl(var(--input))' }}
+            >
                 <option value="" disabled>Selecciona un cliente</option>
                 {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.firstName} {client.lastName}</option>
+                    <option key={client.id} value={client.id} style={{ backgroundColor: 'hsl(var(--card))' }}>
+                        {client.firstName} {client.lastName}
+                    </option>
                 ))}
             </select>
         </div>
         <div>
             <label className="block text-sm font-medium mb-1">Servicios</label>
-            <div className="max-h-40 overflow-y-auto p-2 border rounded-lg space-y-2 bg-input">
+            <div className="max-h-40 overflow-y-auto p-2 border border-border rounded-lg space-y-2 bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
                 {services.map(service => (
                     <label key={service.id} className="flex items-center space-x-2 text-foreground">
                         <input type="checkbox" checked={formState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, false)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary" />
@@ -248,14 +271,23 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label className="block text-sm font-medium mb-1">Fecha</label>
-                <input name="appointmentDate" type="date" value={formState.appointmentDate} onChange={handleFormChange} required className="w-full p-2 border rounded-lg bg-input text-foreground"/>
+                <input name="appointmentDate" type="date" value={formState.appointmentDate} onChange={handleFormChange} required 
+                    className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                    style={{ backgroundColor: 'hsl(var(--input))' }}
+                />
             </div>
             <div>
                 <label className="block text-sm font-medium mb-1">Hora</label>
-                <input name="appointmentTime" type="time" value={formState.appointmentTime} onChange={handleFormChange} required className="w-full p-2 border rounded-lg bg-input text-foreground"/>
+                <input name="appointmentTime" type="time" value={formState.appointmentTime} onChange={handleFormChange} required 
+                    className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                    style={{ backgroundColor: 'hsl(var(--input))' }}
+                />
             </div>
         </div>
-        <textarea name="notes" value={formState.notes} onChange={handleFormChange} placeholder="Notas (opcional)" className="w-full p-2 border rounded-lg bg-input text-foreground" />
+        <textarea name="notes" value={formState.notes} onChange={handleFormChange} placeholder="Notas (opcional)" 
+            className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+            style={{ backgroundColor: 'hsl(var(--input))' }}
+        />
         <div className="flex justify-end pt-2 space-x-4">
              <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button>
              <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90">Guardar Cita</button>
@@ -264,59 +296,74 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
 </Modal>
             
             <Modal isOpen={!!viewingAppointment} onClose={handleCloseModal} title="Editar Cita">
-                {viewingAppointment && editFormState && (
-                    <form onSubmit={handleUpdateAppointment} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Cliente</label>
-                            <select name="clientId" value={editFormState.clientId} onChange={handleEditFormChange} required className="w-full p-2 border rounded-lg bg-input text-foreground">
-                                {clients.map(client => (
-                                    <option key={client.id} value={client.id}>{client.firstName} {client.lastName}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Servicios</label>
-                            <div className="max-h-40 overflow-y-auto p-2 border rounded-lg space-y-2 bg-input">
-                                {services.map(service => (
-                                    <label key={service.id} className="flex items-center space-x-2 text-foreground">
-                                        <input type="checkbox" checked={editFormState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, true)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/>
-                                        <span>{service.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Fecha</label>
-                                <input name="appointmentDate" type="date" value={editFormState.appointmentDate} onChange={handleEditFormChange} required className="w-full p-2 border rounded-lg bg-input text-foreground"/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Hora</label>
-                                <input name="appointmentTime" type="time" value={editFormState.appointmentTime} onChange={handleEditFormChange} required className="w-full p-2 border rounded-lg bg-input text-foreground"/>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Estado</label>
-                            <select name="status" value={editFormState.status} onChange={handleEditFormChange} className={`w-full p-2 border rounded-lg font-semibold ${getStatusClasses(editFormState.status)} ${getStatusTextClasses(editFormState.status)}`}>
-                                <option value="Scheduled" style={{ backgroundColor: '#202020', color: 'white' }}>Agendada</option>
-                                <option value="Completed" style={{ backgroundColor: '#202020', color: 'white' }}>Completada</option>
-                                <option value="Canceled" style={{ backgroundColor: '#202020', color: 'white' }}>Cancelada</option>
-                            </select>
-                        </div>
-                        <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas (opcional)" className="w-full p-2 border rounded-lg bg-input text-foreground" />
-                        
-                        <div className="flex justify-between items-center pt-4">
-                            <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors">
-                                <TrashIcon className="w-5 h-5" /> Eliminar
-                            </button>
-                            <div className="flex gap-4">
-                                <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button>
-                                <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">Guardar Cambios</button>
-                            </div>
-                        </div>
-                    </form>
-                )}
-            </Modal>
+    {viewingAppointment && editFormState && (
+        <form onSubmit={handleUpdateAppointment} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium mb-1">Cliente</label>
+                <select name="clientId" value={editFormState.clientId} onChange={handleEditFormChange} required 
+                    className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                    style={{ backgroundColor: 'hsl(var(--input))' }}
+                >
+                    {clients.map(client => (
+                        <option key={client.id} value={client.id} style={{ backgroundColor: 'hsl(var(--card))' }}>
+                            {client.firstName} {client.lastName}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1">Servicios</label>
+                <div className="max-h-40 overflow-y-auto p-2 border border-border rounded-lg space-y-2 bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
+                    {services.map(service => (
+                        <label key={service.id} className="flex items-center space-x-2 text-foreground">
+                            <input type="checkbox" checked={editFormState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, true)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/>
+                            <span>{service.name}</span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium mb-1">Fecha</label>
+                    <input name="appointmentDate" type="date" value={editFormState.appointmentDate} onChange={handleEditFormChange} required 
+                        className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                        style={{ backgroundColor: 'hsl(var(--input))' }}
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium mb-1">Hora</label>
+                    <input name="appointmentTime" type="time" value={editFormState.appointmentTime} onChange={handleEditFormChange} required 
+                        className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                        style={{ backgroundColor: 'hsl(var(--input))' }}
+                    />
+                </div>
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1">Estado</label>
+                <select name="status" value={editFormState.status} onChange={handleEditFormChange} className={`w-full p-2 border rounded-lg font-semibold ${getStatusClasses(editFormState.status)}`}>
+                    <option value={AppointmentStatus.Scheduled} style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>Agendada</option>
+                    <option value={AppointmentStatus.Completed} style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>Completada</option>
+                    <option value={AppointmentStatus.Canceled} style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>Cancelada</option>
+                    <option value={AppointmentStatus.PaymentPending} style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}>Falta Pago</option>
+                </select>
+            </div>
+            <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas (opcional)" 
+                className="w-full p-2 border border-border rounded-lg bg-input text-foreground"
+                style={{ backgroundColor: 'hsl(var(--input))' }}
+            />
+            
+            <div className="flex justify-between items-center pt-4">
+                <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors">
+                    <TrashIcon className="w-5 h-5" /> Eliminar
+                </button>
+                <div className="flex gap-4">
+                    <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button>
+                    <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">Guardar Cambios</button>
+                </div>
+            </div>
+        </form>
+    )}
+</Modal>
         </div>
     );
 };

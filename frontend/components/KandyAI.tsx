@@ -33,9 +33,10 @@ interface KandyAIProps {
     clients: Client[];
     products: Product[];
     prices: Prices;
+    services: Service[]; 
 }
 
-const KandyAI: React.FC<KandyAIProps> = ({ appointments, clients, products, prices }) => {
+const KandyAI: React.FC<KandyAIProps> = ({ appointments, clients, products, prices, services }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<KandyAIMessage[]>([
         { sender: 'kandy', text: '¡Hola! Soy Kandy, tu asistente. ¿En qué te puedo ayudar hoy?' }
@@ -114,7 +115,7 @@ const KandyAI: React.FC<KandyAIProps> = ({ appointments, clients, products, pric
         setIsLoading(true);
         
         try {
-            const responseText = await getKandyAIResponse(updatedMessages, { appointments, clients, products, prices });
+            const responseText = await getKandyAIResponse(updatedMessages, { appointments, clients, products, prices, services });
             const newKandyMessage: KandyAIMessage = { sender: 'kandy', text: responseText };
             setMessages(prev => [...prev, newKandyMessage]);
         } catch (error) {
@@ -131,16 +132,21 @@ const KandyAI: React.FC<KandyAIProps> = ({ appointments, clients, products, pric
             <div className={`fixed bottom-24 right-4 sm:right-6 md:right-8 w-[calc(100%-2rem)] max-w-sm h-3/5 max-h-[500px] bg-card shadow-2xl rounded-2xl flex flex-col transition-all duration-300 ease-in-out z-40 border border-border ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border">
-                    <div className="flex items-center">
-                        <div className="p-2 bg-gradient-to-br from-primary to-purple-500 rounded-full">
-                            <FrenchBulldogIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <h3 className="ml-3 text-lg font-bold text-card-foreground">Kandy AI</h3>
-                    </div>
-                    <button onClick={handleToggleChat} className="text-muted-foreground hover:text-foreground">
-                        <XIcon className="w-6 h-6" />
-                    </button>
-                </div>
+    <div className="flex items-center">
+        {/* 👇 AQUÍ HACEMOS EL CAMBIO 👇 */}
+        <div className="w-10 h-10 flex items-center justify-center bg-gradient-to-br from-primary to-purple-500 rounded-full">
+            <img 
+                src="/imageKandyAi.png" 
+                alt="Kandy AI Logo" 
+                className="w-8 h-8 rounded-full object-cover" 
+            />
+        </div>
+        <h3 className="ml-3 text-lg font-bold text-card-foreground">Kandy AI</h3>
+    </div>
+    <button onClick={handleToggleChat} className="text-muted-foreground hover:text-foreground">
+        <XIcon className="w-6 h-6" />
+    </button>
+</div>
                 {/* Messages */}
                 <div className="flex-1 p-4 overflow-y-auto">
                     <div className="space-y-4">
@@ -194,10 +200,15 @@ const KandyAI: React.FC<KandyAIProps> = ({ appointments, clients, products, pric
             {/* Floating Action Button */}
             <button
                 onClick={handleToggleChat}
-                className="fixed bottom-4 right-4 sm:right-6 md:right-8 w-16 h-16 bg-gradient-to-br from-primary to-purple-600 rounded-full shadow-lg flex items-center justify-center text-white transform transition-transform hover:scale-110 z-50"
+                className="fixed bottom-4 right-4 sm:right-6 md:right-8 w-16 h-16 bg-gradient-to-br from-primary to-purple-600 rounded-full shadow-lg flex items-center justify-center text-white transform transition-transform hover:scale-110 z-50 overflow-hidden"
                 aria-label="Abrir asistente Kandy AI"
             >
-                <FrenchBulldogIcon className="w-8 h-8" />
+                {/* 👇 AQUÍ HACEMOS EL CAMBIO 👇 */}
+                <img 
+                    src="/imageKandyAi.png" 
+                    alt="Asistente Kandy AI" 
+                    className="w-full h-full object-cover" 
+                />
             </button>
         </>
     );

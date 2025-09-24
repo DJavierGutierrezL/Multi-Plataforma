@@ -11,11 +11,10 @@ export enum Page {
 }
 
 export enum AppointmentStatus {
-  Pending = 'Pendiente',
-  Confirmed = 'Confirmada',
-  Completed = 'Completada',
-  Cancelled = 'Cancelada',
-  PaymentPending = 'Falta Pago',
+    Scheduled = 'Scheduled',
+    Completed = 'Completed',
+    Canceled = 'Canceled',
+    PaymentPending = 'Falta Pago', // <-- NUEVO ESTADO
 }
 
 export enum UserRole {
@@ -31,18 +30,18 @@ export enum BusinessType {
 }
 
 export enum PrimaryColor {
-    Pink = 'Pink',
-    Gold = 'Gold',
-    Green = 'Green',
-    Red = 'Red',
-    Blue = 'Blue',
-    Beige = 'Beige',
+    Rosa = "Rosa",
+    Dorado = "Dorado",
+    Verde = "Verde",
+    Rojo = "Rojo",
+    Azul = "Azul",
+    Beige = "Beige",
 }
 
 export enum BackgroundColor {
-    White = 'White',
-    Black = 'Black',
-    Blue = 'Blue',
+    Blanco = "Blanco",
+    Negro = "Negro",
+    Azul = "Azul",
 }
 
 export enum SubscriptionStatus {

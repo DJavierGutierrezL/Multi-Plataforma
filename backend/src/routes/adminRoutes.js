@@ -4,65 +4,56 @@ const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-// GET /api/admin/dashboard -> Obtiene todos los datos para el panel de SuperAdmin
+// GET /api/admin/dashboard -> Obtener todos los datos para el SuperAdmin
 router.get('/dashboard', verifyToken, async (req, res) => {
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado.' });
+    }
+
     try {
-        const [businessesRes, usersRes, plansRes, subscriptionsRes, paymentsRes] = await Promise.all([
-            db.query('SELECT * FROM businesses ORDER BY id ASC'),
-            db.query('SELECT * FROM users'),
-            db.query('SELECT * FROM plans'),
-            db.query('SELECT * FROM subscriptions'),
-            db.query('SELECT * FROM payments')
+        const [businessesRes, usersRes, plansRes, subscriptionsRes] = await Promise.all([
+            db.query('SELECT * FROM businesses ORDER BY salon_name ASC'),
+            db.query('SELECT id, username, first_name, last_name, role, business_id FROM users ORDER BY username ASC'),
+            db.query('SELECT * FROM plans ORDER BY name ASC'),
+            db.query('SELECT * FROM subscriptions')
         ]);
 
-        // Formateas los negocios (esto ya lo tenías bien)
-        const formattedBusinesses = businessesRes.rows.map(business => ({
-            id: business.id,
-            subscriptionId: null,
-            type: business.type,
+        const businesses = businessesRes.rows.map(b => ({
+            id: b.id,
+            type: b.type,
             profile: {
-                salonName: business.salon_name,
-                ownerName: business.owner_name || '',
-                accountNumber: business.account_number || ''
-            },
-            prices: business.prices || {},
-            themeSettings: {
-                primaryColor: business.theme_primary_color,
-                backgroundColor: business.theme_background_color
-            },
-            clients: [],
-            appointments: [],
-            products: []
+                salonName: b.salon_name
+            }
+        }));
+
+        const users = usersRes.rows.map(u => ({
+            id: u.id,
+            username: u.username,
+            firstName: u.first_name,
+            lastName: u.last_name,
+            role: u.role,
+            businessId: u.business_id
         }));
 
         // --- INICIO DE LA CORRECCIÓN ---
-        // ¡Aplica la misma corrección a las suscripciones!
-        const formattedSubscriptions = subscriptionsRes.rows.map(sub => ({
-            id: sub.id,
-            businessId: sub.business_id,
-            planId: sub.plan_id,
-            status: sub.status,
-            startDate: sub.start_date,
-            endDate: sub.end_date
+        // Formateamos los datos de las suscripciones a camelCase
+        const subscriptions = subscriptionsRes.rows.map(s => ({
+            id: s.id,
+            businessId: s.business_id,
+            planId: s.plan_id,
+            status: s.status,
+            startDate: s.start_date,
+            endDate: s.end_date
         }));
         // --- FIN DE LA CORRECCIÓN ---
 
         res.json({
-            businesses: formattedBusinesses,
-            users: usersRes.rows.map(user => ({ // También es buena idea formatear los usuarios
-                id: user.id,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                username: user.username,
-                role: user.role,
-                businessId: user.business_id,
-                phone: user.phone
-            })),
+            businesses: businesses,
+            users: users,
             plans: plansRes.rows,
-            subscriptions: formattedSubscriptions, // <-- Usa el nuevo array formateado
-            payments: paymentsRes.rows // (Si es necesario, formatea los pagos también)
+            subscriptions: subscriptions // Enviamos las suscripciones ya formateadas
         });
-
+        
     } catch (error) {
         console.error("Error al obtener los datos del dashboard de admin:", error);
         res.status(500).json({ message: 'Error interno del servidor.' });

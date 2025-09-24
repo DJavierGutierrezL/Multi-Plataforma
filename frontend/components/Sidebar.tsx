@@ -100,20 +100,18 @@ const Sidebar: React.FC<SidebarProps> = ({ businessName, businessType, currentPa
             )}
           
             <div className="flex items-center justify-start text-left my-4 p-2 flex-row gap-3">
-                 {(() => {
-                    switch (businessType) {
-                        case BusinessType.NailSalon:
-                            return <AnimatedNailSalonLogo className="w-10 h-10 text-base" />;
-                        case BusinessType.Barbershop:
-                            return <BarberPoleIcon className="w-8 h-8" />;
-                        default:
-                            return <BuildingIcon className="w-8 h-8 text-muted-foreground" />;
-                    }
-                 })()}
-                 <div>
+                {/* --- INICIO DE LA CORRECCIÓN --- */}
+                {/* Usamos un condicional para elegir el logo correcto según el tipo de negocio */}
+                <img 
+                    src={businessType === BusinessType.Barbershop ? "/logoTuboBarberia.png" : "/logoManicuristas.png"}
+                    alt="Logo del negocio" 
+                    className="w-10 h-10 object-contain"
+                />
+                {/* --- FIN DE LA CORRECCIÓN --- */}
+                <div>
                     <h1 className="text-xl font-bold text-card-foreground leading-tight">{businessName}</h1>
                     <p className="text-sm text-muted-foreground">{businessType}</p>
-                 </div>
+                </div>
             </div>
 
           <nav>

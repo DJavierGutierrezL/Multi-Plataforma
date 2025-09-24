@@ -4,21 +4,67 @@ const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-// Ruta específica para '/my-data'. Debe ir ANTES de '/:id'.
+// Ruta para crear un nuevo negocio (POST /api/businesses)
+router.post('/', verifyToken, async (req, res) => {
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado. Solo los administradores pueden crear negocios.' });
+    }
+    const { salonName, type } = req.body;
+    if (!salonName || !type) {
+        return res.status(400).json({ message: 'El nombre y el tipo de negocio son obligatorios.' });
+    }
+    try {
+        const query = `
+            INSERT INTO businesses (salon_name, type)
+            VALUES ($1, $2)
+            RETURNING *;
+        `;
+        const { rows } = await db.query(query, [salonName, type]);
+        const newBusiness = rows[0];
+
+        const formattedBusiness = {
+            id: newBusiness.id,
+            type: newBusiness.type,
+            profile: {
+                salonName: newBusiness.salon_name
+            }
+        };
+        res.status(201).json(formattedBusiness);
+
+    } catch (error) {
+        console.error("Error al crear el negocio:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+// Ruta específica para '/my-data'.
 router.get('/my-data', verifyToken, async (req, res) => {
     const businessId = req.user.businessId;
     if (!businessId) {
         return res.status(403).json({ message: "Usuario no asignado a un negocio." });
     }
     try {
-        const [businessRes, plansRes, subscriptionsRes, paymentsRes, clientsRes, servicesRes, appointmentsRes] = await Promise.all([
+        const appointmentsQuery = `
+            SELECT 
+                a.*, 
+                c.first_name, 
+                c.last_name,
+                COALESCE(array_agg(aps.service_id) FILTER (WHERE aps.service_id IS NOT NULL), '{}') AS service_ids
+            FROM appointments a
+            JOIN clients c ON a.client_id = c.id
+            LEFT JOIN appointment_services aps ON a.id = aps.appointment_id
+            WHERE a.business_id = $1
+            GROUP BY a.id, c.id 
+            ORDER BY a.appointment_date DESC, a.appointment_time ASC;
+        `;
+        
+        const [businessRes, plansRes, subscriptionsRes, clientsRes, servicesRes, appointmentsRes] = await Promise.all([
             db.query('SELECT * FROM businesses WHERE id = $1', [businessId]),
             db.query('SELECT * FROM plans'),
             db.query('SELECT * FROM subscriptions WHERE business_id = $1', [businessId]),
-            db.query('SELECT * FROM payments WHERE business_id = $1', [businessId]),
             db.query('SELECT * FROM clients WHERE business_id = $1 ORDER BY first_name ASC', [businessId]),
             db.query('SELECT * FROM services WHERE business_id = $1 ORDER BY name ASC', [businessId]),
-            db.query('SELECT * FROM appointments WHERE business_id = $1 ORDER BY appointment_date DESC', [businessId])
+            db.query(appointmentsQuery, [businessId])
         ]);
 
         if (businessRes.rows.length === 0) {
@@ -26,17 +72,46 @@ router.get('/my-data', verifyToken, async (req, res) => {
         }
 
         const business = businessRes.rows[0];
-        const formattedBusiness = { id: business.id, type: business.type, profile: { salonName: business.salon_name } };
+
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Añadimos 'accountNumber' al objeto del perfil que se carga.
+        const formattedBusiness = {
+            id: business.id,
+            type: business.type,
+            profile: { 
+                salonName: business.salon_name,
+                accountNumber: business.account_number // <-- ESTA LÍNEA ES LA CLAVE
+            },
+            themeSettings: {
+                primaryColor: business.theme_primary_color || 'Pink',
+                backgroundColor: business.theme_background_color || 'Blanco'
+            }
+        };
+        // --- FIN DE LA CORRECCIÓN ---
+
         const formattedSubscriptions = subscriptionsRes.rows.map(s => ({ id: s.id, businessId: s.business_id, planId: s.plan_id, status: s.status, startDate: s.start_date, endDate: s.end_date }));
         const formattedClients = clientsRes.rows.map(c => ({ id: c.id, firstName: c.first_name, lastName: c.last_name, phone: c.phone, email: c.email, notes: c.notes, businessId: c.business_id, createdAt: c.created_at, birthDate: c.birth_date }));
-        const formattedServices = servicesRes.rows.map(s => ({ id: s.id, name: s.name, price: s.price, durationMinutes: s.duration_minutes, description: s.description, businessId: s.business_id }));
-        const formattedAppointments = appointmentsRes.rows.map(a => ({ id: a.id, clientId: a.client_id, businessId: a.business_id, appointmentDate: a.appointment_date, appointmentTime: a.appointment_time, cost: a.cost, status: a.status, notes: a.notes }));
+        const formattedServices = servicesRes.rows.map(s => ({ id: s.id, name: s.name, price: parseFloat(s.price), durationMinutes: s.duration_minutes, description: s.description, businessId: s.business_id }));
+        
+        const formattedAppointments = appointmentsRes.rows.map(a => ({
+            id: a.id,
+            clientId: a.client_id,
+            businessId: a.business_id,
+            clientFirstName: a.first_name,
+            clientLastName: a.last_name,
+            appointmentDate: a.appointment_date.toISOString().split('T')[0],
+            appointmentTime: a.appointment_time,
+            cost: parseFloat(a.cost),
+            status: a.status,
+            notes: a.notes,
+            serviceIds: a.service_ids,
+        }));
 
         res.json({
             business: formattedBusiness,
             plans: plansRes.rows,
             subscriptions: formattedSubscriptions,
-            payments: paymentsRes.rows,
+            payments: [], // Payments no se usan en este punto
             clients: formattedClients,
             services: formattedServices,
             appointments: formattedAppointments
@@ -47,32 +122,90 @@ router.get('/my-data', verifyToken, async (req, res) => {
     }
 });
 
+// Ruta para actualizar el perfil
 router.put('/profile', verifyToken, async (req, res) => {
     const businessId = req.user.businessId;
-    const { salonName, ownerName, accountNumber } = req.body;
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Añadimos 'accountNumber' para recibirlo del frontend
+    const { salonName, accountNumber } = req.body;
+    // --- FIN DE LA MODIFICACIÓN ---
 
     if (!salonName) {
         return res.status(400).json({ message: "El nombre del salón es obligatorio." });
     }
 
     try {
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // Actualizamos la consulta para que también guarde el número de cuenta
         const query = `
             UPDATE businesses 
-            SET salon_name = $1, owner_name = $2, account_number = $3
-            WHERE id = $4
-            RETURNING salon_name, owner_name, account_number;
+            SET salon_name = $1, account_number = $2
+            WHERE id = $3
+            RETURNING salon_name, account_number;
         `;
-        const { rows } = await db.query(query, [salonName, ownerName, accountNumber, businessId]);
+        // Pasamos 'accountNumber' como el segundo parámetro a la consulta
+        const { rows } = await db.query(query, [salonName, accountNumber, businessId]);
         
         const updatedProfile = {
             salonName: rows[0].salon_name,
-            ownerName: rows[0].owner_name,
-            accountNumber: rows[0].account_number
+            accountNumber: rows[0].account_number // <-- Lo devolvemos en la respuesta
         };
+        // --- FIN DE LA MODIFICACIÓN ---
+
         res.json(updatedProfile);
 
     } catch (error) {
         console.error("Error al actualizar el perfil del negocio:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
+
+// DELETE /api/businesses/:id -> Eliminar un negocio y sus usuarios asociados
+router.delete('/:id', verifyToken, async (req, res) => {
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado.' });
+    }
+
+    const { id } = req.params;
+
+    try {
+        const result = await db.query('DELETE FROM businesses WHERE id = $1', [id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'Negocio no encontrado.' });
+        }
+        res.status(204).send();
+
+    } catch (error) {
+        console.error("Error al eliminar el negocio:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+router.put('/theme', verifyToken, async (req, res) => {
+    const businessId = req.user.businessId;
+    const { primaryColor, backgroundColor } = req.body;
+
+    if (!primaryColor || !backgroundColor) {
+        return res.status(400).json({ message: "Se requieren ambos colores." });
+    }
+
+    try {
+        const query = `
+            UPDATE businesses
+            SET theme_primary_color = $1, theme_background_color = $2
+            WHERE id = $3
+            RETURNING theme_primary_color, theme_background_color;
+        `;
+        const { rows } = await db.query(query, [primaryColor, backgroundColor, businessId]);
+        
+        const updatedTheme = {
+            primaryColor: rows[0].theme_primary_color,
+            backgroundColor: rows[0].theme_background_color
+        };
+        res.json(updatedTheme);
+
+    } catch (error) {
+        console.error("Error al actualizar el tema:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
 });

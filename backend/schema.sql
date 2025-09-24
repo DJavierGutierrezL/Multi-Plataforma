@@ -1,11 +1,8 @@
--- KandyApp Database Schema
---
--- Este script crea todas las tablas necesarias para la aplicación Kandy,
--- estableciendo relaciones, restricciones y tipos de datos adecuados.
--- Versión 1.0
+-- KandyApp Database Schema - Versión 2.0 (Actualizada)
+-- Este script refleja la estructura real utilizada por la aplicación.
 
--- Elimina las tablas si ya existen para empezar desde cero (opcional, cuidado en producción)
-DROP TABLE IF EXISTS payments, subscriptions, appointments, products, clients, users, plans, businesses CASCADE;
+-- Elimina las tablas en el orden correcto de dependencias si ya existen
+DROP TABLE IF EXISTS payments, appointment_services, subscriptions, appointments, products, services, clients, users, plans, businesses CASCADE;
 
 -- Tabla para los Negocios (el núcleo de la aplicación)
 CREATE TABLE businesses (
@@ -14,7 +11,6 @@ CREATE TABLE businesses (
     salon_name VARCHAR(255) NOT NULL,
     owner_name VARCHAR(255),
     account_number TEXT,
-    prices JSONB, -- Usamos JSONB para guardar el objeto de precios flexible
     theme_primary_color VARCHAR(50) DEFAULT 'Pink',
     theme_background_color VARCHAR(50) DEFAULT 'White',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -24,20 +20,20 @@ CREATE TABLE businesses (
 CREATE TABLE plans (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
-    price INTEGER NOT NULL, -- Guardamos el precio en centavos o la unidad mínima para evitar decimales
-    features TEXT[] -- Usamos un array de texto para las características
+    price NUMERIC(10, 2) NOT NULL, -- Usamos NUMERIC para precios con decimales
+    features TEXT[]
 );
 
 -- Tabla para los Usuarios
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL, -- NUNCA guardes contraseñas en texto plano
-    first_name VARCHAR(50),
-    last_name VARCHAR(50),
-    phone VARCHAR(20),
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(30),
     role VARCHAR(20) NOT NULL DEFAULT 'User',
-    business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE, -- Si se borra un negocio, se borran sus usuarios
+    business_id INTEGER REFERENCES businesses(id) ON DELETE SET NULL, -- Si se borra un negocio, el usuario queda sin negocio
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,12 +41,23 @@ CREATE TABLE users (
 CREATE TABLE clients (
     id SERIAL PRIMARY KEY,
     business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255),
     phone VARCHAR(50),
     email VARCHAR(255),
     birth_date DATE,
-    preferences TEXT,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla para los Servicios que ofrece cada negocio
+CREATE TABLE services (
+    id SERIAL PRIMARY KEY,
+    business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    duration_minutes INTEGER,
+    description TEXT
 );
 
 -- Tabla para las Citas
@@ -58,12 +65,19 @@ CREATE TABLE appointments (
     id SERIAL PRIMARY KEY,
     business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    "time" TIME NOT NULL, -- "time" es una palabra reservada, por eso las comillas
-    status VARCHAR(50) NOT NULL,
-    services TEXT[] NOT NULL,
-    cost INTEGER, -- El costo final, si difiere del cálculo de precios
+    appointment_date DATE NOT NULL,
+    appointment_time TIME,
+    status VARCHAR(50) NOT NULL DEFAULT 'Scheduled',
+    cost NUMERIC(10, 2),
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de Unión (Junction Table) para Citas y Servicios (Muchos a Muchos)
+CREATE TABLE appointment_services (
+    appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    PRIMARY KEY (appointment_id, service_id)
 );
 
 -- Tabla para el Inventario de Productos
@@ -90,10 +104,8 @@ CREATE TABLE subscriptions (
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
     business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    amount INTEGER NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL,
     date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    plan_name VARCHAR(100) NOT NULL
+    plan_name VARCHAR(100) NOT NULL,
+    subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL
 );
-
--- Mensaje de éxito
--- SELECT '¡Base de datos KandyApp creada exitosamente!' AS status;

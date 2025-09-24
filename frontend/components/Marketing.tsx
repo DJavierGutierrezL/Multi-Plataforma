@@ -23,29 +23,28 @@ const Marketing: React.FC<MarketingProps> = ({ clients, profile }) => {
     }, [clients, selectedClientId]);
 
     const handleGenerateMessage = async () => {
-        if (!selectedClientId) {
-            alert("Por favor, selecciona un cliente.");
-            return;
-        }
-        setIsLoading(true);
-        setGeneratedMessage('');
-        
-        const selectedClient = clients.find(c => c.id === parseInt(selectedClientId));
-        if (!selectedClient || !profile) {
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            const response = await apiService.generateAiMessage(selectedClient.firstName, messageType, profile.salonName);
-            setGeneratedMessage(response.generatedMessage);
-        } catch (error) {
-            console.error("Error generando el mensaje:", error);
-            alert("Hubo un error al generar el mensaje.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    if (!selectedClientId) {
+        alert("Por favor, selecciona un cliente.");
+        return;
+    }
+    setIsLoading(true);
+    setGeneratedMessage('');
+    
+    try {
+        // Enviamos el ID del cliente (como número) y el nombre del negocio
+        const response = await apiService.generateAiMessage(
+            parseInt(selectedClientId), 
+            messageType, 
+            profile.salonName
+        );
+        setGeneratedMessage(response.generatedMessage);
+    } catch (error) {
+        console.error("Error generando el mensaje:", error);
+        alert("Hubo un error al generar el mensaje.");
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const handleSendWhatsApp = () => {
         const selectedClient = clients.find(c => c.id === parseInt(selectedClientId));
