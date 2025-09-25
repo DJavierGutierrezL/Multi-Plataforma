@@ -2,11 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
-
-const hashPassword = (password) => {
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(password).digest('hex');
-};
+const bcrypt = require('bcrypt');
 
 router.post('/', verifyToken, async (req, res) => {
   const { firstName, lastName, phone, username, password, businessId } = req.body;
@@ -16,7 +12,8 @@ router.post('/', verifyToken, async (req, res) => {
   }
 
   try {
-    const passwordHash = hashPassword(password);
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
     const query = `
       INSERT INTO users (first_name, last_name, phone, username, password_hash, business_id, role)
       VALUES ($1, $2, $3, $4, $5, $6, 'User')
