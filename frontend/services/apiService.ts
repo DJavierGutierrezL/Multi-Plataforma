@@ -1,6 +1,6 @@
 import { RegistrationData, User, Business, Profile, Prices, ThemeSettings, SubscriptionStatus, Appointment, Client, Product, Plan, Subscription, Payment } from '../types';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('authToken');
