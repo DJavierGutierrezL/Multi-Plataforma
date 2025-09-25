@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -19,9 +20,11 @@ router.post('/login', async (req, res) => {
     const user = rows[0];
 
     // Usamos la comparación de texto plano de la solución de emergencia
-    if (password !== user.password_hash) {
-      return res.status(401).json({ message: 'Credenciales inválidas.' });
-    }
+    const passwordIsValid = await bcrypt.compare(password, user.password_hash);
+
+        if (!passwordIsValid) {
+          return res.status(401).json({ message: 'Credenciales inválidas.' });
+        }
 
     const payload = { id: user.id, role: user.role, businessId: user.business_id };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '365d' });
