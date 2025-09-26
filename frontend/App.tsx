@@ -385,7 +385,7 @@ const App: React.FC = () => {
    const renderPage = () => {
     switch (currentPage) {
       case Page.Dashboard: 
-        return <Dashboard appointments={appointments} clients={clients} services={services} />;
+        return <Dashboard appointments={appointments} clients={clients} services={services} onUpdateAppointment={handleUpdateAppointment} onDeleteAppointment={handleDeleteAppointment} />;
       case Page.Appointments: 
         return <Appointments appointments={appointments} clients={clients} services={services} onCreateAppointment={handleCreateAppointment} onDeleteAppointment={handleDeleteAppointment} onUpdateAppointment={handleUpdateAppointment}/>;
       case Page.Clients: 
