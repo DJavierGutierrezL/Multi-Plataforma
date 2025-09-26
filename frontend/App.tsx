@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Page, Profile, Prices, Appointment, Client, Product, User, Business, UserRole, BusinessType, ThemeSettings, PrimaryColor, BackgroundColor, Plan, Subscription, Payment, SubscriptionStatus, RegistrationData, Service } from './types';
 import * as apiService from './services/apiService';
+import toast, { Toaster } from 'react-hot-toast';
 
-// Import Pages/Views
+// Importamos tus componentes reales
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import SubscriptionExpired from './components/SubscriptionExpired';
-
-// Import Business Components
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Appointments from './components/Appointments';
@@ -18,8 +17,6 @@ import Marketing from './components/Marketing';
 import Settings from './components/Settings';
 import SubscriptionPage from './components/SubscriptionPage';
 import KandyAI from './components/KandyAI';
-
-// Import Icons
 import { MenuIcon } from './components/icons/MenuIcon';
 
 const generateCssVariables = (settings: ThemeSettings, mode: 'light' | 'dark'): string => {
@@ -31,93 +28,36 @@ const generateCssVariables = (settings: ThemeSettings, mode: 'light' | 'dark'): 
     [PrimaryColor.Azul]: { base: '221 83% 53%', hover: '221 83% 48%', foreground: '0 0% 100%' },
     [PrimaryColor.Beige]: { base: '37 28% 68%', hover: '37 28% 63%', foreground: '38 33% 20%' },
   };
-
-  const selectedPrimary = primaryColors[settings.primaryColor] || primaryColors[PrimaryColor.Rosa];
-
+  const selectedPrimary = settings?.primaryColor ? primaryColors[settings.primaryColor] : primaryColors[PrimaryColor.Rosa];
   let background, foreground, card, cardForeground, muted, mutedForeground, accent, border;
-
-  switch (settings.backgroundColor) {
+  switch (settings?.backgroundColor) {
     case BackgroundColor.Negro:
-      background = '0 0% 3.9%';
-      foreground = '0 0% 98%';
-      card = '0 0% 7%';
-      cardForeground = '0 0% 98%';
-      muted = '0 0% 15%';
-      mutedForeground = '0 0% 63%';
-      accent = '0 0% 15%';
-      border = '0 0% 15%';
+      background = '0 0% 3.9%'; foreground = '0 0% 98%'; card = '0 0% 7%'; cardForeground = '0 0% 98%';
+      muted = '0 0% 15%'; mutedForeground = '0 0% 63%'; accent = '0 0% 15%'; border = '0 0% 15%';
       break;
     case BackgroundColor.Azul:
-      background = '222 83% 4.9%';
-      foreground = '210 40% 98%';
-      card = '222 83% 9%';
-      cardForeground = '210 40% 98%';
-      muted = '217 33% 17%';
-      mutedForeground = '215 20% 65%';
-      accent = '217 33% 17%';
-      border = '217 33% 17%';
+      background = '222 83% 4.9%'; foreground = '210 40% 98%'; card = '222 83% 9%'; cardForeground = '210 40% 98%';
+      muted = '217 33% 17%'; mutedForeground = '215 20% 65%'; accent = '217 33% 17%'; border = '217 33% 17%';
       break;
     case BackgroundColor.Blanco:
     default:
-      background = '0 0% 100%';
-      foreground = '222 47% 11%';
-      card = '0 0% 100%';
-      cardForeground = '222 47% 11%';
-      muted = '210 40% 96.1%';
-      mutedForeground = '215 28% 45%';
-      accent = '210 40% 96.1%';
-      border = '214 32% 91.4%';
+      background = '0 0% 100%'; foreground = '222 47% 11%'; card = '0 0% 100%'; cardForeground = '222 47% 11%';
+      muted = '210 40% 96.1%'; mutedForeground = '215 28% 45%'; accent = '210 40% 96.1%'; border = '214 32% 91.4%';
       break;
   }
-
-  // Mapa de colores para los botones en Settings.tsx
-  const colorMapCss = `
-    :root {
-      --color-rosa: hsl(340 82% 52%);
-      --color-dorado: hsl(45 93% 47%);
-      --color-verde: hsl(145 63% 42%);
-      --color-rojo: hsl(0 72% 51%);
-      --color-azul: hsl(221 83% 53%);
-      --color-beige: hsl(37 28% 68%);
-    }
-  `;
-
-  return `
-    ${colorMapCss}
-    :root {
-      --background: ${background};
-      --foreground: ${foreground};
-      --card: ${card};
-      --card-foreground: ${cardForeground};
-      --muted: ${muted};
-      --muted-foreground: ${mutedForeground};
-      --accent: ${accent};
-      --accent-foreground: ${foreground};
-      --border: ${border};
-      --input: ${border};
-      --ring: ${selectedPrimary.base};
-      --primary: ${selectedPrimary.base};
-      --primary-hover: ${selectedPrimary.hover};
-      --primary-foreground: ${selectedPrimary.foreground};
-    }
-  `;
+  const colorMapCss = `:root { --color-rosa: hsl(340 82% 52%); --color-dorado: hsl(45 93% 47%); --color-verde: hsl(145 63% 42%); --color-rojo: hsl(0 72% 51%); --color-azul: hsl(221 83% 53%); --color-beige: hsl(37 28% 68%); }`;
+  return `${colorMapCss} :root { --background: ${background}; --foreground: ${foreground}; --card: ${card}; --card-foreground: ${cardForeground}; --muted: ${muted}; --muted-foreground: ${mutedForeground}; --accent: ${accent}; --accent-foreground: ${foreground}; --border: ${border}; --input: ${border}; --ring: ${selectedPrimary.base}; --primary: ${selectedPrimary.base}; --primary-hover: ${selectedPrimary.hover}; --primary-foreground: ${selectedPrimary.foreground}; }`;
 };
 
 const ThemeStyleProvider: React.FC<{ settings?: ThemeSettings, mode: 'light' | 'dark' }> = ({ settings, mode }) => {
-    const defaultSettings: ThemeSettings = {
-        primaryColor: PrimaryColor.Pink,
-        backgroundColor: BackgroundColor.White,
-    };
+    const defaultSettings: ThemeSettings = { primaryColor: PrimaryColor.Rosa, backgroundColor: BackgroundColor.Blanco };
     const cssVariables = generateCssVariables(settings || defaultSettings, mode);
     return <style>{cssVariables}</style>;
 };
 
-
 const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isLoading, setIsLoading] = useState(true);
-
-  // --- Multi-business State ---
   const [users, setUsers] = useState<User[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -127,181 +67,134 @@ const App: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  
-  // --- Auth & View State ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [impersonatedBusinessId, setImpersonatedBusinessId] = useState<number | null>(null);
   const [viewState, setViewState] = useState<'landing' | 'login'>('landing');
-
-  // --- Business App State (for logged-in user) ---
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // --- Initial Load and Session Management ---
   useEffect(() => {
     const checkSession = async () => {
         try {
             const data = await apiService.verifyToken();
-            if (data.user) {
-                setCurrentUser(data.user);
-            }
+            if (data.user) setCurrentUser(data.user);
         } catch (error) {
-            console.log("No active session.");
             localStorage.removeItem('authToken');
         } finally {
             setIsLoading(false);
         }
     };
     checkSession();
-
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else if (prefersDark) {
-      setTheme('dark');
-    }
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    if (savedTheme) setTheme(savedTheme);
+    else if (prefersDark) setTheme('dark');
   }, []);
   
-  // --- Data Fetching on Auth Change ---
   useEffect(() => {
     const fetchData = async () => {
-    if (!currentUser) return;
-    setIsLoading(true);
-    try {
-        if (currentUser.role === UserRole.SuperAdmin) {
-            // --- INICIO DE LA CORRECCIÓN ---
-            const data = await apiService.getSuperAdminDashboardData();
-            // Guardamos los datos obtenidos en el estado de la aplicación
-            setBusinesses(data.businesses || []);
-            setUsers(data.users || []);
-            setPlans(data.plans || []);
-            setSubscriptions(data.subscriptions || []);
-            // --- FIN DE LA CORRECCIÓN ---
-        } else if (currentUser.businessId) {
-            const data = await apiService.getBusinessData();
-            setBusinesses([data.business]);
-            setClients(data.clients || []);
-            setServices(data.services || []);
-            setAppointments(data.appointments || []);
-            setPlans(data.plans || []);
-            setSubscriptions(data.subscriptions || []);
-            setPayments(data.payments || []);
+        if (!currentUser) return;
+        setIsLoading(true);
+        try {
+            if (currentUser.role === UserRole.SuperAdmin) {
+                const data = await apiService.getSuperAdminDashboardData();
+                setBusinesses(data.businesses || []);
+                setUsers(data.users || []);
+                setPlans(data.plans || []);
+                setSubscriptions(data.subscriptions || []);
+            } else if (currentUser.businessId) {
+                const data = await apiService.getBusinessData();
+                setBusinesses(data.business ? [data.business] : []);
+                setClients(data.clients || []);
+                setServices(data.services || []);
+                setAppointments(data.appointments || []);
+                setPlans(data.plans || []);
+                setSubscriptions(data.subscriptions || []);
+                setPayments(data.payments || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+            handleLogout();
+        } finally {
+            setIsLoading(false);
         }
-    } catch (error) {
-        console.error("Failed to fetch data:", error);
-        handleLogout();
-    } finally {
-        setIsLoading(false);
-    }
-};
+    };
     fetchData();
-}, [currentUser]);
+  }, [currentUser]);
 
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // --- Auth Handlers (sin cambios) ---
   const handleLogin = async (username: string, password: string) => {
     const { user, token, business } = await apiService.login(username, password);
     localStorage.setItem('authToken', token);
-    if (business) {
-        setBusinesses([business]);
-    }
+    if (business) setBusinesses([business]);
     setCurrentUser(user);
+    toast.success(`¡Bienvenido, ${user.username}!`);
   };
 
-   const handleLogout = () => {
-    // 1. Limpia el token del navegador
+  const handleLogout = () => {
     localStorage.removeItem('authToken');
-
-    // 2. Resetea todos los estados a sus valores iniciales
     setCurrentUser(null);
     setImpersonatedBusinessId(null);
     setCurrentPage(Page.Dashboard);
-    setBusinesses([]);
-    setUsers([]);
-    setClients([]);
-    setServices([]);
-    setAppointments([]);
-    setPlans([]);
-    setSubscriptions([]);
-    setProducts([]);
-    setPayments([]);
+    setViewState('landing');
   };
 
-    const handleRegister = async (data: RegistrationData) => {
+  const handleRegister = async (data: RegistrationData) => {
     try {
       const { user, token } = await apiService.register(data);
       localStorage.setItem('authToken', token);
       setCurrentUser(user);
+      toast.success('¡Registro exitoso!');
     } catch (error) {
       console.error("Error en el registro:", error);
-      alert("No se pudo completar el registro.");
+      toast.error("No se pudo completar el registro.");
     }
   };
   
   const handleImpersonate = (businessId: number) => {
-      if (currentUser?.role === UserRole.SuperAdmin) {
-          setImpersonatedBusinessId(businessId);
-      }
+      if (currentUser?.role === UserRole.SuperAdmin) setImpersonatedBusinessId(businessId);
   };
 
-  const handleExitImpersonation = () => {
-      setImpersonatedBusinessId(null);
-  };
+  const handleExitImpersonation = () => setImpersonatedBusinessId(null);
 
   const handleSaveThemeSettings = async (newThemeSettings: ThemeSettings) => {
     const businessId = currentUser?.role === UserRole.SuperAdmin ? impersonatedBusinessId : currentUser?.businessId;
     if (!businessId) return;
-
     try {
-        // Llamamos a la API para guardar en el backend
         const updatedSettings = await apiService.updateThemeSettings(newThemeSettings);
-        
-        // Actualizamos el estado local para que los cambios se vean al instante
-        setBusinesses(prev => prev.map(b => 
-            b.id === businessId ? { ...b, themeSettings: updatedSettings } : b
-        ));
+        setBusinesses(prev => prev.map(b => b.id === businessId ? { ...b, themeSettings: updatedSettings } : b));
+        toast.success('Apariencia actualizada.');
     } catch (error) {
         console.error('Failed to save theme settings', error);
-        alert('Error al guardar la configuración de apariencia.');
+        toast.error('Error al guardar la apariencia.');
     }
   };
   
   const handleCreateAppointment = async (appointmentData: any) => {
     try {
         const newAppointmentFromAPI = await apiService.createAppointment(appointmentData);
-        const client = clients.find(c => c.id === newAppointmentFromAPI.clientId);
-        const newAppointmentWithDetails = { ...appointmentData, ...newAppointmentFromAPI, clientFirstName: client?.firstName, clientLastName: client?.lastName };
-        setAppointments(prev => [...prev, newAppointmentWithDetails]);
-        alert('Cita guardada con éxito');
+        setAppointments(prev => [...prev, newAppointmentFromAPI]);
+        toast.success('Cita guardada con éxito');
     } catch (error: any) {
         console.error("Error al crear la cita:", error);
-        alert(`Error al guardar la cita: ${error.message}`);
+        toast.error(`Error al guardar la cita: ${error.message}`);
     }
   };
 
   const handleUpdateAppointment = async (appointmentId: number, updatedData: any) => {
     try {
         const updatedAppointment = await apiService.updateAppointment(appointmentId, updatedData);
-        setAppointments(prevApps => prevApps.map(app => {
-            if (app.id === appointmentId) {
-                return { ...app, ...updatedData, ...updatedAppointment };
-            }
-            return app;
-        }));
-        alert('Cita actualizada con éxito.');
+        setAppointments(prevApps => prevApps.map(app => app.id === appointmentId ? { ...app, ...updatedAppointment } : app));
+        toast.success('Cita actualizada con éxito.');
     } catch (error) {
         console.error("Error al actualizar la cita:", error);
-        alert("Hubo un error al actualizar la cita.");
+        toast.error("Hubo un error al actualizar la cita.");
     }
   };
 
@@ -309,9 +202,10 @@ const App: React.FC = () => {
     try {
         await apiService.deleteAppointment(appointmentId);
         setAppointments(prev => prev.filter(app => app.id !== appointmentId));
+        toast.success('Cita eliminada.');
     } catch (error) {
         console.error("Error al eliminar la cita:", error);
-        alert("Hubo un error al eliminar la cita.");
+        toast.error("Hubo un error al eliminar la cita.");
     }
   };
   
@@ -319,10 +213,10 @@ const App: React.FC = () => {
     try {
         const newService = await apiService.createService(serviceData);
         setServices(prevServices => [...prevServices, newService]);
-        alert('Servicio guardado con éxito');
+        toast.success('Servicio guardado con éxito');
     } catch (error: any) {
         console.error("Error al crear el servicio:", error);
-        alert(`Error al guardar el servicio: ${error.message}`);
+        toast.error(`Error al guardar el servicio: ${error.message}`);
     }
   };
 
@@ -330,23 +224,22 @@ const App: React.FC = () => {
     try {
         const updatedService = await apiService.updateService(serviceId, serviceData);
         setServices(prev => prev.map(s => s.id === serviceId ? updatedService : s));
-        alert('Servicio actualizado con éxito.');
+        toast.success('Servicio actualizado con éxito.');
     } catch (error: any) {
         console.error("Error al actualizar el servicio:", error);
-        alert(`Error al actualizar el servicio: ${error.message}`);
+        toast.error(`Error al actualizar el servicio: ${error.message}`);
     }
   };
 
   const handleDeleteService = async (serviceId: number) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar este servicio?")) {
-        return;
-    }
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este servicio?")) return;
     try {
         await apiService.deleteService(serviceId);
         setServices(prev => prev.filter(s => s.id !== serviceId));
+        toast.success('Servicio eliminado.');
     } catch (error: any) {
         console.error("Error al eliminar el servicio:", error);
-        alert(`Error al eliminar el servicio: ${error.message}`);
+        toast.error(`Error al eliminar el servicio: ${error.message}`);
     }
   };
 
@@ -362,9 +255,10 @@ const App: React.FC = () => {
             }
             return [...prevSubs, updatedSubscription];
         });
+        toast.success('Plan asignado correctamente.');
     } catch (error) {
         console.error("Error al asignar el plan:", error);
-        alert('Error al asignar el plan.');
+        toast.error('Error al asignar el plan.');
     }
   };
 
@@ -372,9 +266,10 @@ const App: React.FC = () => {
       try {
           const updatedSubscription = await apiService.updateSubscriptionStatus(subscriptionId, newStatus);
           setSubscriptions(subs => subs.map(s => s.id === updatedSubscription.id ? updatedSubscription : s));
+          toast.success('Estado de la suscripción actualizado.');
       } catch (error) {
           console.error('Error al actualizar la suscripción:', error);
-          alert('Error al actualizar la suscripción.');
+          toast.error('Error al actualizar la suscripción.');
       }
   };
 
@@ -384,9 +279,9 @@ const App: React.FC = () => {
         setBusinesses(prev => prev.map(b => 
             b.id === currentUser?.businessId ? { ...b, profile: updatedProfile } : b
         ));
-        alert('Perfil guardado exitosamente!');
+        toast.success('Perfil guardado exitosamente!');
     } catch (error) {
-        alert('Error al guardar el perfil.');
+        toast.error('Error al guardar el perfil.');
         console.error("Error al guardar perfil:", error);
     }
   };
@@ -395,10 +290,10 @@ const App: React.FC = () => {
     try {
         const newClient = await apiService.createClient(clientData);
         setClients(prevClients => [...prevClients, newClient]);
-        alert('Cliente guardado con éxito');
+        toast.success('Cliente guardado con éxito');
     } catch (error: any) {
         console.error("Error al crear el cliente en App.tsx:", error);
-        alert(`Error al guardar el cliente: ${error.message}`);
+        toast.error(`Error al guardar el cliente: ${error.message}`);
     }
   };
 
@@ -406,9 +301,10 @@ const App: React.FC = () => {
     try {
         const updatedClient = await apiService.updateClient(clientId, clientData);
         setClients(prev => prev.map(c => c.id === clientId ? updatedClient : c));
+        toast.success('Cliente actualizado con éxito.');
     } catch (error) {
         console.error("Error al actualizar cliente:", error);
-        alert("Error al actualizar el cliente.");
+        toast.error("Error al actualizar el cliente.");
     }
   };
 
@@ -416,62 +312,50 @@ const App: React.FC = () => {
     try {
         await apiService.deleteClient(clientId);
         setClients(prev => prev.filter(c => c.id !== clientId));
+        toast.success('Cliente eliminado.');
     } catch (error) {
         console.error("Error al eliminar cliente:", error);
-        alert("Hubo un error al eliminar el cliente.");
+        toast.error("Hubo un error al eliminar el cliente.");
     }
   };
   
-  const handleAppointmentsImported = (importedData: any[]) => {
-    const businessId = currentUser?.businessId;
-    if (!businessId) return;
-
-    const newAppointments: Appointment[] = importedData.map((item: any, index: number) => ({
-      id: Date.now() + index, 
-      clientName: item.cliente, 
-      services: item.servicios, 
-      date: item.fecha, 
-      time: '12:00', 
-      status: item.estado, 
-      cost: item.costo,
-      clientId: 0, // Debes resolver cómo asignar el clientId correcto
-      businessId: businessId,
-      appointmentDate: '',
-      appointmentTime: '',
-      notes: ''
+  const handleAppointmentsImported = async (importedData: any[]) => {
+    if (!currentUser?.businessId || importedData.length === 0) {
+        toast.error("No se encontraron datos para importar.");
+        return;
+    }
+    const appointmentsFromAI = importedData.map(item => ({
+        clientName: item.cliente,
+        services: item.servicios,
+        cost: item.costo,
+        appointmentDate: item.fecha
     }));
-
-    setAppointments(prev => [...prev, ...newAppointments]);
-    alert(`${newAppointments.length} citas han sido importadas.`);
+    setIsLoading(true);
+    try {
+        await apiService.importAppointments(appointmentsFromAI);
+        const data = await apiService.getBusinessData();
+        setAppointments(data.appointments || []);
+        setClients(data.clients || []);
+        setServices(data.services || []);
+        toast.success(`${appointmentsFromAI.length} citas han sido guardadas.`);
+    } catch (error) {
+        console.error("Error al guardar las citas importadas:", error);
+        toast.error("Hubo un error al guardar las citas.");
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   if (isLoading) {
-      return (
-          <div className="flex items-center justify-center h-screen bg-gray-900">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500"></div>
-          </div>
-      );
+      return <div className="flex items-center justify-center h-screen bg-background"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div></div>;
   }
 
   if (!currentUser) {
     if (viewState === 'landing') {
-        return ( 
-            <LandingPage 
-                onLoginClick={() => setViewState('login')} 
-                onRegister={handleRegister} 
-                plans={plans}
-            /> 
-        );
+        return <LandingPage onLoginClick={() => setViewState('login')} onRegister={handleRegister} plans={plans} />;
     }
     if (viewState === 'login') {
-        return (
-            <Login 
-                onLogin={handleLogin} 
-                theme={theme} 
-                onThemeChange={setTheme} 
-                onBackToLanding={() => setViewState('landing')} 
-            />
-        );
+        return <Login onLogin={handleLogin} theme={theme} onThemeChange={setTheme} onBackToLanding={() => setViewState('landing')} />;
     }
   }
 
@@ -508,43 +392,52 @@ const App: React.FC = () => {
         return <Clients clients={clients} onCreateClient={handleCreateClient} onUpdateClient={handleUpdateClient} onDeleteClient={handleDeleteClient}/>;
       case Page.Inventory: 
         return <Inventory products={products} setProducts={() => {}} />;
-
-      // --- INICIO DE LA CORRECCIÓN ---
-      // Añadimos el caso para el Asistente Virtual (IA)
       case Page.VirtualAssistant: 
-        // Aseguramos que currentBusiness y profile existan antes de renderizar
-        if (!currentBusiness?.profile) {
-          return <div>Cargando perfil del negocio...</div>;
-        }
+        if (!currentBusiness?.profile) return <div>Cargando perfil...</div>;
         return <Marketing clients={clients} profile={currentBusiness.profile} />;
-      // --- FIN DE LA CORRECCIÓN ---
-      
       case Page.Subscription: 
-        const currentSubscription = subscriptions.find(s => s.businessId === currentBusiness?.id);
-        const currentPlan = plans.find(p => p.id === currentSubscription?.planId);
-        return <SubscriptionPage business={currentBusiness} subscription={currentSubscription} plan={currentPlan} allPlans={plans} paymentHistory={payments.filter(p => p.businessId === currentBusiness?.id)} onRenew={() => {}} onChangePlan={() => {}} />;
+        const sub = subscriptions.find(s => s.businessId === currentBusiness?.id);
+        const plan = plans.find(p => p.id === sub?.planId);
+        return <SubscriptionPage business={currentBusiness} subscription={sub} plan={plan} allPlans={plans} paymentHistory={payments.filter(p => p.businessId === currentBusiness?.id)} onRenew={() => {}} onChangePlan={() => {}} />;
       case Page.Settings: 
-        if (!currentBusiness?.profile || !currentBusiness.themeSettings) {
-          return <div>Cargando ajustes...</div>;
-        }
+        if (!currentBusiness?.profile || !currentBusiness.themeSettings) return <div>Cargando ajustes...</div>;
         return <Settings 
-            profile={currentBusiness.profile}
-            theme={currentBusiness.themeSettings} // <-- Se pasa el tema
-            onSaveProfile={handleSaveProfile} 
-            onSaveTheme={handleSaveThemeSettings} // <-- Se pasa la función para guardar
-            services={services} 
-            onCreateService={handleCreateService} 
-            onUpdateService={handleUpdateService} 
-            onDeleteService={handleDeleteService} 
-            onAppointmentsImported={handleAppointmentsImported} 
+          profile={currentBusiness.profile}
+          theme={currentBusiness.themeSettings}
+          onSaveProfile={handleSaveProfile} 
+          onSaveTheme={handleSaveThemeSettings}
+          services={services} 
+          onCreateService={handleCreateService} 
+          onUpdateService={handleUpdateService} 
+          onDeleteService={handleDeleteService} 
+          onAppointmentsImported={handleAppointmentsImported} 
+          setIsLoading={setIsLoading} 
         />;
-        return <Settings profile={currentBusiness.profile} onSaveProfile={handleSaveProfile} services={services} onCreateService={handleCreateService} onUpdateService={handleUpdateService} onDeleteService={handleDeleteService} onAppointmentsImported={handleAppointmentsImported} />;
       default: 
         return <Dashboard appointments={appointments} clients={clients} services={services} />;
     }
   };  
   return (
     <>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+            className: 'text-sm font-semibold',
+            duration: 4000,
+            style: {
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--card-foreground))',
+                border: '1px solid hsl(var(--border))',
+            },
+            success: {
+                iconTheme: {
+                    primary: 'hsl(var(--primary))',
+                    secondary: 'hsl(var(--primary-foreground))',
+                },
+            },
+        }}
+      />
       <ThemeStyleProvider settings={currentBusiness.themeSettings} mode={theme} />
       <div className="flex h-screen font-sans bg-background text-foreground">
         <Sidebar 
@@ -568,13 +461,12 @@ const App: React.FC = () => {
           <main className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8`}> {renderPage()} </main>
         </div>
         
-        {/* 👇 AQUÍ AÑADES EL CHATBOT 👇 */}
         <KandyAI 
             appointments={appointments}
             clients={clients}
             products={products}
             services={services}
-            prices={{}} // Puedes pasar tu lista de precios aquí si la tienes
+            prices={{}}
         />
       </div>
     </>
@@ -582,3 +474,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
