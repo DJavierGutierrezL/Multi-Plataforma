@@ -1,11 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { Client, Service, Appointment, AppointmentStatus } from '../types';
-import Modal from './Modal';
-import { PlusIcon } from './icons/PlusIcon';
-import { TrashIcon } from './icons/TrashIcon';
+
+// --- Definiciones de Tipos y Componentes (para que el archivo compile) ---
+export enum AppointmentStatus {
+    Scheduled = 'Scheduled',
+    Completed = 'Completed',
+    Canceled = 'Canceled',
+    PaymentPending = 'PaymentPending'
+}
+export interface Client { id: number; firstName: string; lastName?: string; }
+export interface Service { id: number; name: string; price: number; }
+export interface Appointment {
+    id: number;
+    clientId: number;
+    appointmentDate: string;
+    appointmentTime: string;
+    serviceIds?: number[];
+    notes: string;
+    status: string;
+    cost: number;
+}
+const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-card text-card-foreground rounded-2xl shadow-lg w-full max-w-md p-6 pb-24 sm:pb-8">
+                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">{title}</h2><button onClick={onClose}>&times;</button></div>
+                {children}
+            </div>
+        </div>
+    );
+};
+const createIcon = (path: React.ReactNode): React.FC<React.SVGProps<SVGSVGElement>> => ({ className = 'w-6 h-6', ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{path}</svg>
+);
+const PlusIcon = createIcon(<path d="M5 12h14m-7-7v14" />);
+const TrashIcon = createIcon(<path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />);
+const CalendarIcon = createIcon(<><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></>);
+const ClockIcon = createIcon(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
+const UserIcon = createIcon(<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>);
+const SparklesIcon = createIcon(<path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9 1.9 5.8 1.9-5.8 5.8-1.9-5.8-1.9z" />);
+const PencilIcon = createIcon(<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />);
+// --- Fin de Definiciones ---
 
 
-// Definimos un tipo para las citas que vienen con datos del cliente
 interface AppointmentWithClient extends Appointment {
     clientFirstName?: string;
     clientLastName?: string;
@@ -31,62 +68,43 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         appointmentTime: '10:00',
         serviceIds: [] as number[],
         notes: '',
-        // --- CORRECCIÓN #1: Añadir 'cost' al estado inicial del formulario de creación ---
-        cost: 0 
+        cost: 0
     });
 
     const [editFormState, setEditFormState] = useState<any | null>(null);
 
-    // Efecto para inicializar el formulario de edición cuando se abre el modal
     useEffect(() => {
         if (viewingAppointment) {
             setEditFormState({
-                clientId: viewingAppointment.clientId || '',
-                appointmentDate: viewingAppointment.appointmentDate ? viewingAppointment.appointmentDate.split('T')[0] : '',
-                appointmentTime: viewingAppointment.appointmentTime || '',
+                clientId: viewingAppointment.clientId,
+                appointmentDate: viewingAppointment.appointmentDate.split('T')[0],
+                appointmentTime: viewingAppointment.appointmentTime,
                 serviceIds: viewingAppointment.serviceIds || [],
                 notes: viewingAppointment.notes || '',
                 status: viewingAppointment.status || 'Scheduled',
-                cost: viewingAppointment.cost || 0
             });
-        } else {
-            setEditFormState(null);
         }
     }, [viewingAppointment]);
+    
+    const calculateCost = (selectedServiceIds: number[]) => services
+        .filter(s => selectedServiceIds.includes(s.id))
+        .reduce((total, service) => total + Number(service.price), 0);
 
-    // --- CORRECCIÓN #2: Añadir useEffect para calcular el costo en el MODAL DE CREACIÓN ---
     useEffect(() => {
-        if (formState.serviceIds.length > 0 && services.length > 0) {
-            const totalCost = formState.serviceIds.reduce((total, serviceId) => {
-                const service = services.find(s => s.id === serviceId);
-                return total + (service ? Number(service.price) : 0);
-            }, 0);
-            setFormState(prev => ({ ...prev, cost: totalCost }));
-        } else {
-            setFormState(prev => ({ ...prev, cost: 0 }));
-        }
+        setFormState(prev => ({ ...prev, cost: calculateCost(prev.serviceIds) }));
     }, [formState.serviceIds, services]);
 
-
-    // Efecto para calcular el costo total dinámicamente en el modal de edición
     useEffect(() => {
-        if (editFormState && services.length > 0) {
-            const totalCost = editFormState.serviceIds.reduce((total: number, serviceId: number) => {
-                const service = services.find(s => s.id === serviceId);
-                return total + (service ? Number(service.price) : 0);
-            }, 0);
-            setEditFormState((prev: any) => ({ ...prev, cost: totalCost }));
+        if (editFormState) {
+            setEditFormState((prev: any) => ({ ...prev, cost: calculateCost(prev.serviceIds) }));
         }
     }, [editFormState?.serviceIds, services]);
 
-
-    // --- Lógica de calendario y helpers ---
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); 
-    const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const calendarDays = Array.from({ length: 7 }, (_, i) => {
+    const startOfWeek = new Date(selectedDate);
+    startOfWeek.setDate(selectedDate.getDate() - (selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1)); 
+    
+    const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const calendarDays = Array.from({ length: 6 }, (_, i) => {
         const day = new Date(startOfWeek);
         day.setDate(startOfWeek.getDate() + i);
         return day;
@@ -94,128 +112,73 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
 
     const formatTime12h = (time24h: string): string => {
         if (!time24h) return '';
-        const [hoursStr, minutes] = time24h.split(':');
-        let hours = parseInt(hoursStr, 10);
-        const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        return `${hours}:${minutes} ${ampm}`;
+        const [h, m] = time24h.split(':');
+        return new Date(0, 0, 0, Number(h), Number(m)).toLocaleTimeString('es-CO', { hour: 'numeric', minute: 'numeric', hour12: true });
     };
     
     const getStatusClasses = (status: string) => {
-    switch (status) {
-        case AppointmentStatus.Scheduled: return 'bg-pink-500 text-white';
-        case AppointmentStatus.Completed: return 'bg-blue-500 text-white';
-        case AppointmentStatus.Canceled: return 'bg-red-600 text-white';
-        case AppointmentStatus.PaymentPending: return 'bg-orange-500 text-white';
-        default: return 'bg-gray-500 text-white';
-    }
-};
-    
-    const getStatusTextClasses = (status: string) => {
-        return (status === 'Pending') ? 'text-black' : 'text-white';
-    }
+        const statuses: Record<string, string> = {
+            [AppointmentStatus.Scheduled]: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+            [AppointmentStatus.Completed]: 'bg-green-500/20 text-green-400 border-green-500/30',
+            [AppointmentStatus.Canceled]: 'bg-red-600/20 text-red-400 border-red-500/30',
+            [AppointmentStatus.PaymentPending]: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        };
+        return statuses[status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    };
 
     const handleCloseModal = () => {
         setIsCreateModalOpen(false);
         setViewingAppointment(null);
-        // --- CORRECCIÓN #3: Resetear el estado incluyendo el costo ---
-        setFormState({ clientId: '', appointmentDate: new Date().toISOString().split('T')[0], appointmentTime: '10:00', serviceIds: [], notes: '', cost: 0 });
     };
 
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        setFormState(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleFormChange = (e: React.ChangeEvent<any>) => setFormState(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleEditFormChange = (e: React.ChangeEvent<any>) => setEditFormState(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleServiceChange = (serviceId: number, isEdit = false) => {
+        const updater = isEdit ? setEditFormState : setFormState;
+        updater((prev: any) => ({ ...prev, serviceIds: prev.serviceIds.includes(serviceId) ? prev.serviceIds.filter((id: number) => id !== serviceId) : [...prev.serviceIds, serviceId] }));
     };
+    const handleSaveAppointment = async (e: React.FormEvent) => { e.preventDefault(); await onCreateAppointment({ ...formState, clientId: parseInt(formState.clientId) }); handleCloseModal(); };
+    const handleUpdateAppointment = async (e: React.FormEvent) => { e.preventDefault(); if (viewingAppointment) { await onUpdateAppointment(viewingAppointment.id, { ...editFormState, clientId: parseInt(editFormState.clientId) }); handleCloseModal(); } };
+    const handleDeleteFromModal = () => { if (viewingAppointment && window.confirm('¿Eliminar cita?')) { onDeleteAppointment(viewingAppointment.id); handleCloseModal(); } };
 
-    const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        if (editFormState) {
-            setEditFormState(prev => ({ ...prev, [e.target.name]: e.target.value }));
-        }
-    };
+    const filterAndSortAppointments = (date: Date) => appointments
+        .filter(app => app.appointmentDate?.split('T')[0] === date.toISOString().split('T')[0])
+        .sort((a, b) => (a.appointmentTime || '').localeCompare(b.appointmentTime || ''));
 
-    const handleServiceChange = (serviceId: number, isEditForm: boolean = false) => {
-        const stateUpdater = isEditForm ? setEditFormState : setFormState;
-        stateUpdater((prev: any) => {
-            const currentServiceIds = prev.serviceIds || [];
-            const newServiceIds = currentServiceIds.includes(serviceId)
-                ? currentServiceIds.filter((id: number) => id !== serviceId)
-                : [...currentServiceIds, serviceId];
-            return { ...prev, serviceIds: newServiceIds };
-        });
-    };
+    const selectedDayAppointments = filterAndSortAppointments(selectedDate);
     
-    const handleSaveAppointment = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formState.clientId || formState.serviceIds.length === 0) {
-            alert('Por favor, selecciona un cliente y al menos un servicio.');
-            return;
-        }
-        // Ahora `formState` ya incluye el costo calculado
-        await onCreateAppointment({ ...formState, clientId: parseInt(formState.clientId) });
-        handleCloseModal();
-    };
-
-    const handleUpdateAppointment = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (viewingAppointment && editFormState) {
-            const dataToUpdate = {
-                ...editFormState,
-                clientId: parseInt(editFormState.clientId),
-            };
-            await onUpdateAppointment(viewingAppointment.id, dataToUpdate);
-            handleCloseModal();
-        }
-    };
-
-    const handleDeleteFromModal = () => {
-        if (viewingAppointment && window.confirm('¿Seguro que quieres eliminar esta cita? Esta acción no se puede deshacer.')) {
-            onDeleteAppointment(viewingAppointment.id);
-            handleCloseModal();
-        }
-    };
-    
-    const filterAndSortAppointments = (apps: AppointmentWithClient[], date: Date) => {
-        return apps
-            .filter(app => {
-                const dateValue = app.appointmentDate;
-                if (!dateValue) return false;
-                const appDate = dateValue.split('T')[0];
-                const filterDate = date.toISOString().split('T')[0];
-                return appDate === filterDate;
-            })
-            .sort((a, b) => (a.appointmentTime || '').localeCompare(b.appointmentTime || ''));
-    };
-
-    const selectedDayAppointments = filterAndSortAppointments(appointments, selectedDate);
-
-    // --- RENDERIZADO DEL COMPONENTE (SIN CAMBIOS) ---
     return (
         <div className="space-y-8">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <h1 className="text-3xl font-bold">Agenda de Citas</h1>
-                <button onClick={() => setIsCreateModalOpen(true)} className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg shadow hover:bg-primary/90 flex items-center transition-colors">
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Agendar Cita
+                <button onClick={() => setIsCreateModalOpen(true)} className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg shadow hover:bg-primary/90 flex items-center w-full sm:w-auto justify-center">
+                    <PlusIcon className="w-5 h-5 mr-2" /> Agendar Cita
                 </button>
             </div>
 
             <div className="bg-card p-4 md:p-6 rounded-2xl shadow-lg border border-border">
-                <h3 className="text-xl font-semibold mb-4">Calendario Semanal</h3>
-                <div className="grid grid-cols-7 gap-2 text-center">
-                    {weekDays.map(day => <div key={day} className="font-bold text-muted-foreground text-sm md:text-base">{day}</div>)}
+                <h3 className="text-xl font-semibold mb-4 text-card-foreground">Calendario Semanal</h3>
+                <div className="grid grid-cols-6 gap-2 text-center">
+                    {weekDays.map(day => <div key={day} className="font-bold text-muted-foreground text-sm">{day}</div>)}
                     {calendarDays.map((day, index) => {
-                        const dayAppointments = filterAndSortAppointments(appointments, day);
+                        const dayAppointments = filterAndSortAppointments(day);
                         const isSelected = day.toDateString() === selectedDate.toDateString();
+                        
                         return (
-                            <div key={index} onClick={() => setSelectedDate(day)} className={`p-2 border rounded-lg min-h-[100px] md:min-h-32 cursor-pointer transition-colors ${isSelected ? 'ring-2 ring-primary bg-primary/10' : 'hover:bg-accent'}`}>
-                                <div className="font-bold text-right text-sm md:text-base">{day.getDate()}</div>
-                                <div className="space-y-1 mt-1">
-                                    {dayAppointments.slice(0, 3).map(app => (
-                                        <button key={app.id} onClick={(e) => { e.stopPropagation(); setViewingAppointment(app); }} className={`w-full text-white text-xs rounded p-1 truncate text-left ${getStatusClasses(app.status)}`}>
-                                            {formatTime12h(app.appointmentTime)} - {app.clientFirstName}
-                                        </button>
+                            <div 
+                                key={index} 
+                                onClick={() => setSelectedDate(day)} 
+                                className={`border rounded-lg cursor-pointer transition-all duration-200 flex flex-col items-start p-2 min-h-[120px]
+                                    ${isSelected ? 'ring-2 ring-primary bg-primary/10' : 'hover:bg-accent border-border'}`}
+                            >
+                                <div className={`font-bold text-sm self-end ${isSelected ? 'text-primary' : 'text-foreground'}`}>{day.getDate()}</div>
+                                <div className="space-y-1 w-full mt-1 overflow-y-auto">
+                                    {dayAppointments.slice(0, 2).map(app => (
+                                        <div key={app.id} className="bg-primary/80 text-primary-foreground text-xs rounded p-1 text-left truncate cursor-pointer" onClick={(e) => { e.stopPropagation(); setViewingAppointment(app); }}>
+                                            <span>{formatTime12h(app.appointmentTime)}</span> - <span>{app.clientFirstName}</span>
+                                        </div>
                                     ))}
-                                    {dayAppointments.length > 3 && <div className="text-xs text-muted-foreground text-center">+ {dayAppointments.length - 3} más</div>}
+                                    {dayAppointments.length > 2 && <div className="text-xs text-muted-foreground text-center">...{dayAppointments.length - 2} más</div>}
                                 </div>
                             </div>
                         );
@@ -223,22 +186,54 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                 </div>
             </div>
             
-            <div className="bg-card p-4 md:p-6 rounded-2xl shadow-lg border border-border">
-                <h3 className="text-xl font-semibold mb-4">
+            <div className="space-y-4">
+                 <h3 className="text-2xl font-bold text-card-foreground">
                     Citas para el {selectedDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </h3>
-                <div className="space-y-3">
-                    {selectedDayAppointments.length > 0 ? (
-                        selectedDayAppointments.map((app) => (
-                            <button key={app.id} onClick={() => setViewingAppointment(app)} className={`w-full text-left p-4 rounded-lg hover:opacity-90 transition-opacity text-white ${getStatusClasses(app.status)}`}>
-                                <p className="font-bold">{app.clientFirstName} {app.clientLastName}</p>
-                                <p className="text-sm">{formatTime12h(app.appointmentTime)}</p>
-                            </button>
-                        ))
-                    ) : (
-                        <div className="text-center text-muted-foreground py-8">No hay citas programadas para este día.</div>
-                    )}
-                </div>
+                {selectedDayAppointments.length > 0 ? (
+                    selectedDayAppointments.map(app => {
+                        const appServices = services.filter(s => app.serviceIds?.includes(s.id));
+                        return (
+                            <div key={app.id} className="bg-card border border-border rounded-2xl shadow-lg overflow-hidden">
+                                <div className="p-4 flex flex-col sm:flex-row gap-4">
+                                    <div className="flex sm:flex-col items-center sm:justify-center sm:w-28 text-center border-b sm:border-b-0 sm:border-r border-border pb-3 sm:pb-0 sm:pr-4">
+                                        <ClockIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-0 sm:mb-1 mr-2 sm:mr-0"/>
+                                        <span className="font-bold text-lg text-primary">{formatTime12h(app.appointmentTime)}</span>
+                                    </div>
+                                    <div className="flex-grow space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-sm text-muted-foreground flex items-center"><UserIcon className="w-4 h-4 mr-2"/>Cliente</p>
+                                                <p className="font-bold text-lg text-card-foreground">{app.clientFirstName} {app.clientLastName}</p>
+                                            </div>
+                                            <div className={`text-xs font-bold py-1 px-3 rounded-full border ${getStatusClasses(app.status)}`}>{app.status}</div>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground flex items-center"><SparklesIcon className="w-4 h-4 mr-2"/>Servicios</p>
+                                            <ul className="text-sm text-card-foreground list-disc list-inside">
+                                                {appServices.map(s => <li key={s.id}>{s.name}</li>)}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div className="flex sm:flex-col justify-between items-end sm:items-center sm:w-32 pt-3 sm:pt-0 sm:pl-4 border-t sm:border-t-0 sm:border-l border-border">
+                                        <div className="text-center">
+                                            <p className="text-sm text-muted-foreground">Costo Total</p>
+                                            <p className="font-bold text-xl text-primary">{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(app.cost)}</p>
+                                        </div>
+                                        <button onClick={() => setViewingAppointment(app)} className="bg-accent text-accent-foreground p-2 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors">
+                                            <PencilIcon className="w-5 h-5"/>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })
+                ) : (
+                    <div className="text-center text-muted-foreground py-12 bg-card rounded-2xl border border-border">
+                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50"/>
+                        <p className="font-semibold">No hay citas programadas para este día.</p>
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Agendar Nueva Cita">
@@ -369,3 +364,4 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
 };
 
 export default Appointments;
+
