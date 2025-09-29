@@ -72,10 +72,26 @@ const App: React.FC = () => {
   const [viewState, setViewState] = useState<'landing' | 'login'>('landing');
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   // --- INICIO DE LA CORRECCIÓN ---
 
-  // 1. Convertimos la lógica de carga de datos en una función explícita y memoizada.
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('authToken');
+    setCurrentUser(null);
+    setImpersonatedBusinessId(null);
+    setCurrentPage(Page.Dashboard);
+    setViewState('landing');
+    setBusinesses([]);
+    setUsers([]);
+    setPlans([]);
+    setSubscriptions([]);
+    setPayments([]);
+    setClients([]);
+    setAppointments([]);
+    setProducts([]);
+    setServices([]);
+  }, []);
+
   const fetchDataForUser = useCallback(async (user: User) => {
     setIsLoading(true);
     try {
@@ -97,17 +113,13 @@ const App: React.FC = () => {
         }
     } catch (error) {
         console.error("Failed to fetch data:", error);
-        // Usamos handleLogout para limpiar todo y volver al inicio
-        localStorage.removeItem('authToken');
-        setCurrentUser(null);
-        setViewState('login');
+        handleLogout();
         toast.error('Falló la carga de datos. Por favor, inicia sesión de nuevo.');
     } finally {
         setIsLoading(false);
     }
-  }, []); // El array vacío significa que esta función no se recreará innecesariamente
+  }, [handleLogout]);
 
-  // 2. Simplificamos el useEffect de inicio para solo verificar la sesión.
   useEffect(() => {
     const checkSession = async () => {
         setIsLoading(true);
@@ -117,25 +129,22 @@ const App: React.FC = () => {
                 const data = await apiService.verifyToken();
                 if (data.user) {
                     setCurrentUser(data.user);
-                    // IMPORTANTE: Llamamos a nuestra nueva función para cargar los datos
-                    await fetchDataForUser(data.user); 
+                    await fetchDataForUser(data.user);
                 } else {
-                    localStorage.removeItem('authToken');
+                    handleLogout();
                 }
             } catch (error) {
-                localStorage.removeItem('authToken');
+                handleLogout();
             }
         }
         setIsLoading(false);
     };
     checkSession();
-
-    // Lógica del tema sin cambios
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
     if (savedTheme) setTheme(savedTheme);
     else if (prefersDark) setTheme('dark');
-  }, [fetchDataForUser]); // Ahora depende de nuestra función memoizada
+  }, [fetchDataForUser, handleLogout]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -144,37 +153,13 @@ const App: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // 3. Modificamos handleLogin para ser más robusto.
   const handleLogin = async (username: string, password: string) => {
-    // Ya no necesitamos un try/catch aquí, el componente Login lo maneja
     const { user, token } = await apiService.login(username, password);
     localStorage.setItem('authToken', token);
     setCurrentUser(user);
-    // IMPORTANTE: Llamamos a la carga de datos DESPUÉS de establecer el usuario y el token.
-    await fetchDataForUser(user); 
+    await fetchDataForUser(user);
     toast.success(`¡Bienvenido, ${user.username}!`);
   };
-
-  // 4. Optimizamos handleLogout con useCallback.
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    setCurrentUser(null);
-    setImpersonatedBusinessId(null);
-    setCurrentPage(Page.Dashboard);
-    setViewState('landing');
-    // Limpiamos todos los estados de datos para una salida limpia
-    setBusinesses([]);
-    setUsers([]);
-    setPlans([]);
-    setSubscriptions([]);
-    setPayments([]);
-    setClients([]);
-    setAppointments([]);
-    setProducts([]);
-    setServices([]);
-  }, []);
-
-  // Ya no necesitamos el useEffect que dependía de [currentUser] para cargar datos.
 
   // --- FIN DE LA CORRECCIÓN ---
 
@@ -183,7 +168,7 @@ const App: React.FC = () => {
       const { user, token } = await apiService.register(data);
       localStorage.setItem('authToken', token);
       setCurrentUser(user);
-      await fetchDataForUser(user); // Cargamos datos después del registro también
+      await fetchDataForUser(user);
       toast.success('¡Registro exitoso!');
     } catch (error) {
       console.error("Error en el registro:", error);
@@ -213,7 +198,7 @@ const App: React.FC = () => {
   const handleCreateAppointment = async (appointmentData: any) => {
     try {
         const newAppointmentFromAPI = await apiService.createAppointment(appointmentData);
-        setAppointments(prev => [...prev, newAppointmentFromAPI].sort((a,b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()));
+        setAppointments(prev => [...prev, newAppointmentFromAPI]);
         toast.success('Cita guardada con éxito');
     } catch (error: any) {
         console.error("Error al crear la cita:", error);
@@ -246,7 +231,7 @@ const App: React.FC = () => {
   const handleCreateService = async (serviceData: Partial<Service>) => {
     try {
         const newService = await apiService.createService(serviceData);
-        setServices(prevServices => [...prevServices, newService].sort((a,b) => a.name.localeCompare(b.name)));
+        setServices(prevServices => [...prevServices, newService]);
         toast.success('Servicio guardado con éxito');
     } catch (error: any) {
         console.error("Error al crear el servicio:", error);
@@ -311,7 +296,7 @@ const App: React.FC = () => {
     try {
         const updatedProfile = await apiService.updateProfile(newProfile);
         setBusinesses(prev => prev.map(b => 
-            b.id === (impersonatedBusinessId || currentUser?.businessId) ? { ...b, profile: updatedProfile } : b
+            b.id === currentUser?.businessId ? { ...b, profile: updatedProfile } : b
         ));
         toast.success('Perfil guardado exitosamente!');
     } catch (error) {
@@ -323,7 +308,7 @@ const App: React.FC = () => {
   const handleCreateClient = async (clientData: Partial<Client>) => {
     try {
         const newClient = await apiService.createClient(clientData);
-        setClients(prevClients => [...prevClients, newClient].sort((a,b) => a.firstName.localeCompare(b.firstName)));
+        setClients(prevClients => [...prevClients, newClient]);
         toast.success('Cliente guardado con éxito');
     } catch (error: any) {
         console.error("Error al crear el cliente en App.tsx:", error);
@@ -389,7 +374,7 @@ const App: React.FC = () => {
         return <LandingPage onLoginClick={() => setViewState('login')} onRegister={handleRegister} plans={plans} />;
     }
     if (viewState === 'login') {
-        return <Login onLogin={handleLogin} onBackToLanding={() => setViewState('landing')} />;
+        return <Login onLogin={handleLogin} onBackToLanding={() => setViewState('landing')} theme={theme} onThemeChange={setTheme} />;
     }
   }
 
@@ -448,10 +433,9 @@ const App: React.FC = () => {
           setIsLoading={setIsLoading} 
         />;
       default: 
-        return <Dashboard appointments={appointments} clients={clients} services={services} onUpdateAppointment={handleUpdateAppointment} onDeleteAppointment={handleDeleteAppointment} />;
+        return <Dashboard appointments={appointments} clients={clients} services={services} />;
     }
   };  
-
   return (
     <>
       <Toaster
