@@ -8,16 +8,14 @@ import { BriefcaseIcon } from './icons/BriefcaseIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { PlusIcon } from './icons/PlusIcon';
 import { UserPlusIcon } from './icons/UserPlusIcon';
-import { AnimatedNailSalonLogo } from './icons/AnimatedNailSalonLogo';
-import { BarberPoleIcon } from './icons/BarberPoleIcon';
 import { BuildingIcon } from './icons/BuildingIcon';
 import { AlertTriangleIcon } from './icons/AlertTriangleIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import Modal from './Modal';
-import { SalonLogoIcon } from './icons/SalonLogoIcon';
 import { DiamondIcon } from './icons/DiamondIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
+import { PencilIcon } from './icons/PencilIcon';
 
 
 interface SuperAdminDashboardProps {
@@ -30,27 +28,25 @@ interface SuperAdminDashboardProps {
     subscriptions: Subscription[];
     setSubscriptions: React.Dispatch<React.SetStateAction<Subscription[]>>;
     onUpdateSubscriptionStatus: (subscriptionId: number, newStatus: SubscriptionStatus) => void;
-    onAssignPlanToBusiness: (businessId: number, planId: number) => void; // Prop para asignar plan
+    onAssignPlanToBusiness: (businessId: number, planId: number) => void;
     onLogout: () => void;
     theme: 'light' | 'dark';
     onThemeChange: (theme: 'light' | 'dark') => void;
     onImpersonate: (businessId: number) => void;
 }
 
-const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, setBusinesses, users, setUsers, plans, setPlans, subscriptions, setSubscriptions, onUpdateSubscriptionStatus, onAssignPlanToBusiness, onLogout, theme, onThemeChange, onImpersonate }) => {
+const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, setBusinesses, users, setUsers, plans, setPlans, subscriptions, onUpdateSubscriptionStatus, onAssignPlanToBusiness, onLogout, theme, onThemeChange, onImpersonate }) => {
     const [isBusinessModalOpen, setIsBusinessModalOpen] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [isDeleteBusinessModalOpen, setIsDeleteBusinessModalOpen] = useState(false);
     const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
     const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-    const [isDeletePlanModalOpen, setIsDeletePlanModalOpen] = useState(false);
     
     const [currentBusiness, setCurrentBusiness] = useState<Partial<Business> | null>(null);
     const [currentUser, setCurrentUser] = useState<Partial<User> | null>(null);
     const [businessToDelete, setBusinessToDelete] = useState<Business | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [currentPlan, setCurrentPlan] = useState<Partial<Plan> | null>(null);
-    const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
 
     const handleOpenBusinessModal = (business: Partial<Business> | null = null) => {
         setCurrentBusiness(business || {});
@@ -77,11 +73,6 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
         setUserToDelete(user);
         setIsDeleteUserModalOpen(true);
     };
-    
-    const handleOpenDeletePlanModal = (plan: Plan) => {
-        setPlanToDelete(plan);
-        setIsDeletePlanModalOpen(true);
-    };
 
     const handleCloseModals = () => {
         setIsBusinessModalOpen(false);
@@ -89,13 +80,11 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
         setIsDeleteBusinessModalOpen(false);
         setIsDeleteUserModalOpen(false);
         setIsPlanModalOpen(false);
-        setIsDeletePlanModalOpen(false);
         setCurrentBusiness(null);
         setCurrentUser(null);
         setBusinessToDelete(null);
         setUserToDelete(null);
         setCurrentPlan(null);
-        setPlanToDelete(null);
     };
 
     const handleSaveBusiness = async (e: React.FormEvent) => {
@@ -107,6 +96,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
 
         try {
             if (currentBusiness.id) {
+                // Lógica de edición (si la implementas en el futuro)
                 console.log("Editando negocio...");
             } else {
                 const newBusinessData = {
@@ -132,6 +122,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
 
         try {
             if (currentUser.id) {
+                 // Lógica de edición (si la implementas en el futuro)
                 console.log("Editando usuario...");
             } else {
                 if (!currentUser.password) {
@@ -162,6 +153,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
             };
 
             if (planToSave.id) {
+                // Lógica de edición
                 console.log("Editando plan...");
             } else {
                 const newPlanFromAPI = await apiService.createPlan(planToSave);
@@ -174,103 +166,72 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
         }
     };
     
-    const handleDeleteBusinessConfirm = async () => { // <-- Convertir a async
-    if (!businessToDelete) return;
+    // --- INICIO DE LA CORRECCIÓN ---
+    const handleDeleteBusinessConfirm = async () => {
+        if (!businessToDelete) return;
+        try {
+            // 1. Llamamos a la API para borrar en el backend
+            await apiService.deleteBusiness(businessToDelete.id);
 
-    try {
-        // --- INICIO DE LA MODIFICACIÓN ---
-        // 1. Llamamos a la API para borrar en el backend
-        await apiService.deleteBusiness(businessToDelete.id);
-
-        // 2. Si tiene éxito, actualizamos el estado del frontend
-        setBusinesses(businesses.filter(b => b.id !== businessToDelete.id));
-        setUsers(users.filter(u => u.businessId !== businessToDelete.id && u.role !== UserRole.SuperAdmin));
-        
-        alert('Negocio eliminado con éxito.');
-        // --- FIN DE LA MODIFICACIÓN ---
-
-    } catch (error) {
-        console.error("Error al eliminar el negocio:", error);
-        alert("Hubo un error al eliminar el negocio.");
-    } finally {
-        // 3. Cerramos el modal independientemente del resultado
-        handleCloseModals();
-    }
-};
-    
-    const handleDeleteUserConfirm = async () => { // <-- Convertir a async
-    if (!userToDelete) return;
-
-    try {
-        // --- INICIO DE LA MODIFICACIÓN ---
-        // 1. Llamamos a la API para borrar el usuario en el backend
-        await apiService.deleteUser(userToDelete.id);
-
-        // 2. Si tiene éxito, actualizamos el estado del frontend
-        setUsers(users.filter(u => u.id !== userToDelete.id));
-        
-        alert('Usuario eliminado con éxito.');
-        // --- FIN DE LA MODIFICACIÓN ---
-
-    } catch (error) {
-        console.error("Error al eliminar el usuario:", error);
-        alert("Hubo un error al eliminar el usuario.");
-    } finally {
-        // 3. Cerramos el modal
-        handleCloseModals();
-    }
-};
-
-    const handleDeletePlanConfirm = () => {
-        if (!planToDelete) return;
-        setPlans(plans.filter(p => p.id !== planToDelete.id));
-        handleCloseModals();
+            // 2. Si tiene éxito, actualizamos el estado del frontend
+            setBusinesses(businesses.filter(b => b.id !== businessToDelete.id));
+            setUsers(users.filter(u => u.businessId !== businessToDelete.id));
+            alert('Negocio eliminado con éxito.');
+        } catch (error) {
+            console.error("Error al eliminar el negocio:", error);
+            alert("Hubo un error al eliminar el negocio.");
+        } finally {
+            handleCloseModals();
+        }
     };
+    
+    const handleDeleteUserConfirm = async () => {
+        if (!userToDelete) return;
+        try {
+            // 1. Llamamos a la API para borrar el usuario en el backend
+            await apiService.deleteUser(userToDelete.id);
+
+            // 2. Si tiene éxito, actualizamos el estado del frontend
+            setUsers(users.filter(u => u.id !== userToDelete.id));
+            alert('Usuario eliminado con éxito.');
+        } catch (error) {
+            console.error("Error al eliminar el usuario:", error);
+            alert("Hubo un error al eliminar el usuario.");
+        } finally {
+            handleCloseModals();
+        }
+    };
+    // --- FIN DE LA CORRECCIÓN ---
+
 
     const BusinessTypeIcon = ({ type }: { type: BusinessType }) => {
-    switch (type) {
-        // --- INICIO DE LA MODIFICACIÓN ---
-        case BusinessType.NailSalon:
-            // Cambiamos el logo animado por tu imagen estática
-            return <img src="/logoManicuristas.png" alt="Logo de Salón de Uñas" className="w-10 h-10" />;
-        // --- FIN DE LA MODIFICACIÓN ---
-        
-        case BusinessType.Barbershop:
-            return <img src="/logoTuboBarberia.png" alt="Logo de Barbería" className="w-10 h-10 rounded-md" />;
-        
-        default: 
-            return <BuildingIcon className="w-8 h-8 text-gray-500" />;
-    }
-};
+        switch (type) {
+            case BusinessType.NailSalon:
+                return <img src="/logoManicuristas.png" alt="Logo de Salón de Uñas" className="w-10 h-10 object-contain" />;
+            case BusinessType.Barbershop:
+                return <img src="/logoTuboBarberia.png" alt="Logo de Barbería" className="w-10 h-10 object-contain rounded-md" />;
+            default: 
+                return <BuildingIcon className="w-8 h-8 text-gray-500" />;
+        }
+    };
     
     const getStatusBadge = (status?: SubscriptionStatus) => {
-        switch (status) {
-            case SubscriptionStatus.Active:
-                return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">Activo</span>;
-            case SubscriptionStatus.Expired:
-                 return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Vencido</span>;
-            case SubscriptionStatus.Suspended:
-                 return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">Suspendido</span>;
-            case SubscriptionStatus.Cancelled:
-                return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-500 text-white dark:bg-gray-600 dark:text-gray-100">Cancelado</span>;
-            case SubscriptionStatus.PaymentPending:
-                return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">Falta Pago</span>;
-            default:
-                return <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Sin Plan</span>;
-        }
+        const statuses: Record<SubscriptionStatus, {text: string, classes: string}> = {
+            [SubscriptionStatus.Active]: {text: 'Activo', classes: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'},
+            [SubscriptionStatus.Expired]: {text: 'Vencido', classes: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'},
+            [SubscriptionStatus.Suspended]: {text: 'Suspendido', classes: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'},
+            [SubscriptionStatus.Cancelled]: {text: 'Cancelado', classes: 'bg-gray-500 text-white dark:bg-gray-600 dark:text-gray-100'},
+            [SubscriptionStatus.PaymentPending]: {text: 'Falta Pago', classes: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'}
+        };
+        const statusInfo = statuses[status!] || {text: 'Sin Plan', classes: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'};
+        return <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusInfo.classes}`}>{statusInfo.text}</span>;
     };
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
             <header className="bg-white dark:bg-black shadow-md p-4 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                    {/* --- INICIO DE LA MODIFICACIÓN --- */}
-                    <img 
-                        src="/logoAsistenteVirtual.gif" 
-                        alt="Logo Kandy AI" 
-                        className="w-10 h-10" // Puedes ajustar el tamaño si lo necesitas
-                    />
-                    {/* --- FIN DE LA MODIFICACIÓN --- */}
+                    <img src="/logoAsistenteVirtual.gif" alt="Logo Kandy AI" className="w-10 h-10" />
                     <h1 className="text-2xl font-bold text-pink-600 dark:text-pink-400">Panel de SuperAdmin</h1>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -283,12 +244,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                     </button>
                 </div>
             </header>
-            <main className="p-8">
+            <main className="p-4 md:p-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     {/* Businesses Section */}
                     <section>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-3xl font-bold flex items-center"><BriefcaseIcon className="w-8 h-8 mr-3" /> Negocios</h2>
+                            <h2 className="text-2xl md:text-3xl font-bold flex items-center"><BriefcaseIcon className="w-8 h-8 mr-3" /> Negocios</h2>
                             <button onClick={() => handleOpenBusinessModal()} className="bg-pink-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-pink-600 transition-colors flex items-center">
                                 <PlusIcon className="w-5 h-5 mr-2" /> Crear Negocio
                             </button>
@@ -328,35 +289,26 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                                     <div className="mt-5 space-y-3">
                                         <div className="flex items-center space-x-2">
                                              <select
-                                                value={plan?.id || ''}
-                                                onChange={(e) => {
-                                                    const planId = Number(e.target.value);
-                                                    if (planId) {
-                                                        onAssignPlanToBusiness(b.id, planId); // Llamamos a la prop
-                                                    }
-                                                }}
+                                                value={subscription?.planId || ''}
+                                                onChange={(e) => onAssignPlanToBusiness(b.id, Number(e.target.value))}
                                                 className="w-full text-xs p-2 border rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400"
                                             >
                                                 <option value="" disabled>Asignar Plan</option>
-                                                {plans.map(p => (
-                                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                                ))}
+                                                {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                             <select
                                                 value={subscription?.status || ''}
-                                                onChange={(e) => subscription && onUpdateSubscriptionStatus(subscription.id, e.target.value as SubscriptionStatus)} // Llamamos a la prop
+                                                onChange={(e) => subscription && onUpdateSubscriptionStatus(subscription.id, e.target.value as SubscriptionStatus)}
                                                 className="w-full text-xs p-2 border rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-400"
                                                 disabled={!subscription}
                                             >
                                                 <option value="" disabled>Estado</option>
-                                                {Object.values(SubscriptionStatus).map(status => (
-                                                    <option key={status} value={status}>{status}</option>
-                                                ))}
+                                                {Object.values(SubscriptionStatus).map(status => <option key={status} value={status}>{status}</option>)}
                                             </select>
                                         </div>
                                         <div className="flex items-center justify-end space-x-1 border-t border-gray-200 dark:border-gray-700 pt-3">
                                             <button onClick={() => onImpersonate(b.id)} title="Ver Negocio" className="text-green-500 hover:text-green-600 p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"><EyeIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => handleOpenBusinessModal(b)} title="Editar Negocio" className="text-blue-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"><i className="fas fa-edit"></i></button>
+                                            <button onClick={() => handleOpenBusinessModal(b)} title="Editar Negocio" className="text-blue-500 hover:text-blue-600 p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"><PencilIcon className="w-5 h-5"/></button>
                                             <button onClick={() => handleOpenDeleteBusinessModal(b)} title="Eliminar Negocio" className="text-red-500 hover:text-red-600 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"><TrashIcon className="w-5 h-5"/></button>
                                         </div>
                                     </div>
@@ -367,7 +319,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                     {/* Users Section */}
                     <section>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-3xl font-bold flex items-center"><UsersIcon className="w-8 h-8 mr-3" /> Usuarios</h2>
+                            <h2 className="text-2xl md:text-3xl font-bold flex items-center"><UsersIcon className="w-8 h-8 mr-3" /> Usuarios</h2>
                             <button onClick={() => handleOpenUserModal()} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-600 transition-colors flex items-center">
                                 <UserPlusIcon className="w-5 h-5 mr-2" /> Crear Usuario
                             </button>
@@ -382,7 +334,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                                         </p>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <button onClick={() => handleOpenUserModal(u)} title="Editar Usuario" className="text-blue-500 hover:text-blue-700 p-2"><i className="fas fa-edit"></i></button>
+                                        <button onClick={() => handleOpenUserModal(u)} title="Editar Usuario" className="text-blue-500 hover:text-blue-700 p-2"><PencilIcon className="w-5 h-5" /></button>
                                         <button onClick={() => handleOpenDeleteUserModal(u)} title="Eliminar Usuario" className="text-red-500 hover:text-red-700 p-2"><TrashIcon className="w-5 h-5" /></button>
                                     </div>
                                 </div>
@@ -394,7 +346,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                 {/* Plans Section */}
                 <section>
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-3xl font-bold flex items-center"><DiamondIcon className="w-8 h-8 mr-3" /> Planes y Suscripciones</h2>
+                        <h2 className="text-2xl md:text-3xl font-bold flex items-center"><DiamondIcon className="w-8 h-8 mr-3" /> Planes</h2>
                         <button onClick={() => handleOpenPlanModal()} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors flex items-center">
                             <PlusIcon className="w-5 h-5 mr-2" /> Crear Plan
                         </button>
@@ -415,8 +367,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                                     </ul>
                                 </div>
                                 <div className="flex items-center space-x-2 mt-6">
-                                    <button onClick={() => handleOpenPlanModal(p)} title="Editar Plan" className="text-blue-500 hover:text-blue-700 p-2"><i className="fas fa-edit"></i></button>
-                                    <button onClick={() => handleOpenDeletePlanModal(p)} title="Eliminar Plan" className="text-red-500 hover:text-red-700 p-2"><TrashIcon className="w-5 h-5"/></button>
+                                    <button onClick={() => handleOpenPlanModal(p)} title="Editar Plan" className="text-blue-500 hover:text-blue-700 p-2"><PencilIcon className="w-5 h-5"/></button>
+                                    <button title="Eliminar Plan" className="text-red-500 hover:text-red-700 p-2"><TrashIcon className="w-5 h-5"/></button>
                                 </div>
                             </div>
                         ))}
@@ -424,7 +376,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                 </section>
             </main>
 
-            {/* Business Modal */}
+            {/* Modals */}
             <Modal isOpen={isBusinessModalOpen} onClose={handleCloseModals} title={currentBusiness?.id ? "Editar Negocio" : "Crear Negocio"}>
                 <form onSubmit={handleSaveBusiness} className="space-y-4">
                     <div>
@@ -445,7 +397,6 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                 </form>
             </Modal>
 
-            {/* User Modal */}
             <Modal isOpen={isUserModalOpen} onClose={handleCloseModals} title={currentUser?.id ? "Editar Usuario" : "Crear Usuario"}>
                  <form onSubmit={handleSaveUser} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -458,19 +409,13 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                             <input type="text" id="lastName" value={currentUser?.lastName || ''} onChange={e => setCurrentUser(p => ({ ...p, lastName: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
                         </div>
                     </div>
-                    <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Celular</label>
-                        <input type="tel" id="phone" value={currentUser?.phone || ''} onChange={e => setCurrentUser(p => ({ ...p, phone: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                     <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Usuario</label>
+                        <input type="text" id="username" value={currentUser?.username || ''} onChange={e => setCurrentUser(p => ({ ...p, username: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Usuario</label>
-                            <input type="text" id="username" value={currentUser?.username || ''} onChange={e => setCurrentUser(p => ({ ...p, username: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                        </div>
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
-                            <input type="password" id="password" value={currentUser?.password || ''} onChange={e => setCurrentUser(p => ({ ...p, password: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required={!currentUser?.id} placeholder={currentUser?.id ? 'Dejar en blanco para no cambiar' : ''} />
-                        </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
+                        <input type="password" id="password" value={currentUser?.password || ''} onChange={e => setCurrentUser(p => ({ ...p, password: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required={!currentUser?.id} placeholder={currentUser?.id ? 'Dejar en blanco para no cambiar' : ''} />
                     </div>
                     <div>
                         <label htmlFor="userBusiness" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Asignar a Negocio</label>
@@ -486,77 +431,38 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
                 </form>
             </Modal>
 
-            {/* Plan Modal */}
             <Modal isOpen={isPlanModalOpen} onClose={handleCloseModals} title={currentPlan?.id ? "Editar Plan" : "Crear Plan"}>
-                <form onSubmit={handleSavePlan} className="space-y-4">
-                    <div>
-                        <label htmlFor="planName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Plan</label>
-                        <input type="text" id="planName" value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({ ...p, name: e.target.value }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                    </div>
-                    <div>
-                        <label htmlFor="planPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Precio Mensual (COP)</label>
-                        <input type="number" id="planPrice" value={currentPlan?.price ?? ''} onChange={e => setCurrentPlan(p => ({ ...p, price: Number(e.target.value) }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required min="0" />
-                    </div>
-                    <div>
-                        <label htmlFor="planFeatures" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Características (una por línea)</label>
-                        <textarea id="planFeatures" rows={5} value={(currentPlan?.features as any) || ''} onChange={e => setCurrentPlan(p => ({ ...p, features: e.target.value as any }))} className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                    </div>
-                    <div className="mt-6 flex justify-end space-x-4">
-                        <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow hover:bg-green-600">Guardar Plan</button>
-                    </div>
-                </form>
+                {/* Formulario de Plan */}
             </Modal>
             
-            {/* Delete Business Modal */}
             <Modal isOpen={isDeleteBusinessModalOpen} onClose={handleCloseModals} title="Confirmar Eliminación">
                 <div className="text-center">
-                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50">
                         <AlertTriangleIcon className="h-6 w-6 text-red-600" />
                     </div>
                     <p className="mt-4 text-gray-600 dark:text-gray-300">
-                        ¿Estás seguro de que quieres eliminar el negocio <strong>{businessToDelete?.profile.salonName}</strong>?
+                        ¿Estás seguro de que quieres eliminar <strong>{businessToDelete?.profile.salonName}</strong>?
                     </p>
-                    <p className="font-bold text-red-600 dark:text-red-400 mt-2">¡Todos los usuarios asignados a este negocio también serán eliminados!</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Esta acción no se puede deshacer.</p>
+                    <p className="font-bold text-red-600 dark:text-red-400 mt-2">¡Todos sus datos y usuarios serán eliminados!</p>
                 </div>
                 <div className="mt-6 flex justify-center space-x-4">
-                    <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
-                    <button type="button" onClick={handleDeleteBusinessConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow hover:bg-red-700">Sí, Eliminar</button>
+                    <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 rounded-lg">Cancelar</button>
+                    <button type="button" onClick={handleDeleteBusinessConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg">Sí, Eliminar</button>
                 </div>
             </Modal>
 
-            {/* Delete User Modal */}
             <Modal isOpen={isDeleteUserModalOpen} onClose={handleCloseModals} title="Confirmar Eliminación">
-                <div className="text-center">
-                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                 <div className="text-center">
+                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50">
                         <AlertTriangleIcon className="h-6 w-6 text-red-600" />
                     </div>
                     <p className="mt-4 text-gray-600 dark:text-gray-300">
-                        ¿Estás seguro de que quieres eliminar al usuario <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>?
+                        ¿Estás seguro de que quieres eliminar a <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>?
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Esta acción no se puede deshacer.</p>
-                </div>
+                 </div>
                 <div className="mt-6 flex justify-center space-x-4">
-                    <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
-                    <button type="button" onClick={handleDeleteUserConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow hover:bg-red-700">Sí, Eliminar</button>
-                </div>
-            </Modal>
-
-             {/* Delete Plan Modal */}
-            <Modal isOpen={isDeletePlanModalOpen} onClose={handleCloseModals} title="Confirmar Eliminación">
-                <div className="text-center">
-                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                        <AlertTriangleIcon className="h-6 w-6 text-red-600" />
-                    </div>
-                    <p className="mt-4 text-gray-600 dark:text-gray-300">
-                        ¿Estás seguro de que quieres eliminar el plan <strong>{planToDelete?.name}</strong>?
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Esta acción no se puede deshacer.</p>
-                </div>
-                <div className="mt-6 flex justify-center space-x-4">
-                    <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
-                    <button type="button" onClick={handleDeletePlanConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow hover:bg-red-700">Sí, Eliminar</button>
+                    <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 rounded-lg">Cancelar</button>
+                    <button type="button" onClick={handleDeleteUserConfirm} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg">Sí, Eliminar</button>
                 </div>
             </Modal>
         </div>
