@@ -1,4 +1,3 @@
-// backend/src/routes/businessRoutes.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -72,22 +71,19 @@ router.get('/my-data', verifyToken, async (req, res) => {
         }
 
         const business = businessRes.rows[0];
-
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Añadimos 'accountNumber' al objeto del perfil que se carga.
+        
         const formattedBusiness = {
             id: business.id,
             type: business.type,
             profile: { 
                 salonName: business.salon_name,
-                accountNumber: business.account_number // <-- ESTA LÍNEA ES LA CLAVE
+                accountNumber: business.account_number
             },
             themeSettings: {
                 primaryColor: business.theme_primary_color || 'Pink',
                 backgroundColor: business.theme_background_color || 'Blanco'
             }
         };
-        // --- FIN DE LA CORRECCIÓN ---
 
         const formattedSubscriptions = subscriptionsRes.rows.map(s => ({ id: s.id, businessId: s.business_id, planId: s.plan_id, status: s.status, startDate: s.start_date, endDate: s.end_date }));
         const formattedClients = clientsRes.rows.map(c => ({ id: c.id, firstName: c.first_name, lastName: c.last_name, phone: c.phone, email: c.email, notes: c.notes, businessId: c.business_id, createdAt: c.created_at, birthDate: c.birth_date }));
@@ -117,40 +113,40 @@ router.get('/my-data', verifyToken, async (req, res) => {
             appointments: formattedAppointments
         });
     } catch (error) {
-        console.error("Error crítico al obtener los datos del negocio:", error);
-        res.status(500).json({ message: 'Error interno del servidor.' });
+        // --- INICIO DE LA MODIFICACIÓN (DETECTIVE FINAL) ---
+        console.error("----------- ERROR CRÍTICO EN /my-data -----------");
+        console.error("Fecha:", new Date().toISOString());
+        console.error("Business ID:", businessId);
+        console.error("Usuario (del token):", JSON.stringify(req.user, null, 2));
+        console.error("Detalles del Error:", error);
+        console.error("----------------------------------------------------");
+        res.status(500).json({ message: 'Error interno del servidor al cargar datos del negocio.' });
+        // --- FIN DE LA MODIFICACIÓN ---
     }
 });
 
 // Ruta para actualizar el perfil
 router.put('/profile', verifyToken, async (req, res) => {
     const businessId = req.user.businessId;
-    // --- INICIO DE LA MODIFICACIÓN ---
-    // Añadimos 'accountNumber' para recibirlo del frontend
     const { salonName, accountNumber } = req.body;
-    // --- FIN DE LA MODIFICACIÓN ---
 
     if (!salonName) {
         return res.status(400).json({ message: "El nombre del salón es obligatorio." });
     }
 
     try {
-        // --- INICIO DE LA MODIFICACIÓN ---
-        // Actualizamos la consulta para que también guarde el número de cuenta
         const query = `
             UPDATE businesses 
             SET salon_name = $1, account_number = $2
             WHERE id = $3
             RETURNING salon_name, account_number;
         `;
-        // Pasamos 'accountNumber' como el segundo parámetro a la consulta
         const { rows } = await db.query(query, [salonName, accountNumber, businessId]);
         
         const updatedProfile = {
             salonName: rows[0].salon_name,
-            accountNumber: rows[0].account_number // <-- Lo devolvemos en la respuesta
+            accountNumber: rows[0].account_number
         };
-        // --- FIN DE LA MODIFICACIÓN ---
 
         res.json(updatedProfile);
 
