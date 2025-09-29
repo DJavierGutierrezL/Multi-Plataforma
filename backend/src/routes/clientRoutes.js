@@ -1,4 +1,3 @@
-// backend/src/routes/clientRoutes.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -17,21 +16,21 @@ const formatClient = (client) => ({
     birthDate: client.birth_date
 });
 
-// GET /api/clients -> Obtener todos los clientes del negocio
+// GET /api/clients -> Obtener todos los clientes DEL NEGOCIO
 router.get('/', verifyToken, async (req, res) => {
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     try {
         const { rows } = await db.query('SELECT * FROM clients WHERE business_id = $1 ORDER BY first_name ASC', [businessId]);
-        res.json(rows.map(formatClient)); // <-- Usamos la función para asegurar consistencia
+        res.json(rows.map(formatClient));
     } catch (error) {
         console.error("Error al obtener clientes:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
 
-// POST /api/clients -> Crear un nuevo cliente
+// POST /api/clients -> Crear un nuevo cliente PARA EL NEGOCIO
 router.post('/', verifyToken, async (req, res) => {
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     const { firstName, lastName, phone, email, notes, birthDate } = req.body;
 
     if (!firstName || !phone) {
@@ -44,18 +43,18 @@ router.post('/', verifyToken, async (req, res) => {
             RETURNING *;
         `;
         const { rows } = await db.query(query, [firstName, lastName, phone, email, notes, businessId, birthDate || null]);
-        res.status(201).json(formatClient(rows[0])); // <-- Formateamos la respuesta
+        res.status(201).json(formatClient(rows[0]));
     } catch (error) {
         console.error("Error al crear cliente:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
 
-// PUT /api/clients/:id -> Actualizar un cliente existente
+// PUT /api/clients/:id -> Actualizar un cliente DEL NEGOCIO
 router.put('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { firstName, lastName, phone, email, notes, birthDate } = req.body;
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     try {
         const query = `
             UPDATE clients 
@@ -66,23 +65,23 @@ router.put('/:id', verifyToken, async (req, res) => {
         const { rows } = await db.query(query, [firstName, lastName, phone, email, notes, birthDate || null, id, businessId]);
         
         if (rows.length === 0) {
-            return res.status(404).json({ message: "Cliente no encontrado." });
+            return res.status(404).json({ message: "Cliente no encontrado en este negocio." });
         }
-        res.json(formatClient(rows[0])); // <-- Formateamos la respuesta
+        res.json(formatClient(rows[0]));
     } catch (error) {
         console.error("Error al actualizar cliente:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
 
-// DELETE /api/clients/:id -> Eliminar un cliente
+// DELETE /api/clients/:id -> Eliminar un cliente DEL NEGOCIO
 router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     try {
         const result = await db.query('DELETE FROM clients WHERE id = $1 AND business_id = $2', [id, businessId]);
         if (result.rowCount === 0) {
-            return res.status(404).json({ message: "Cliente no encontrado." });
+            return res.status(404).json({ message: "Cliente no encontrado en este negocio." });
         }
         res.status(204).send();
     } catch (error) {

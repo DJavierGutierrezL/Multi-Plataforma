@@ -3,9 +3,9 @@ const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-// GET /api/appointments -> Obtener todas las citas del negocio
+// GET /api/appointments -> Obtener todas las citas DEL NEGOCIO
 router.get('/', verifyToken, async (req, res) => {
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     try {
         const query = `
             SELECT 
@@ -42,9 +42,9 @@ router.get('/', verifyToken, async (req, res) => {
     }
 });
 
-// POST /api/appointments -> Crear una nueva cita
+// POST /api/appointments -> Crear una nueva cita PARA EL NEGOCIO
 router.post('/', verifyToken, async (req, res) => {
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     const { clientId, appointmentDate, appointmentTime, notes, serviceIds } = req.body;
 
     if (!clientId || !appointmentDate || !serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
@@ -55,7 +55,11 @@ router.post('/', verifyToken, async (req, res) => {
     try {
         const servicesQuery = 'SELECT SUM(price) as total FROM services WHERE id = ANY($1::int[]) AND business_id = $2';
         const servicesRes = await db.query(servicesQuery, [serviceIds, businessId]);
-        const totalCost = servicesRes.rows[0].total || 0;
+        if (servicesRes.rows.length === 0 || servicesRes.rows[0].total === null) {
+            await db.query('ROLLBACK');
+            return res.status(400).json({ message: "Uno o más servicios no son válidos para este negocio."});
+        }
+        const totalCost = servicesRes.rows[0].total;
 
         const appointmentQuery = `
             INSERT INTO appointments (client_id, business_id, appointment_date, appointment_time, cost, notes, status)
@@ -65,27 +69,20 @@ router.post('/', verifyToken, async (req, res) => {
         const appointmentRes = await db.query(appointmentQuery, [clientId, businessId, appointmentDate, appointmentTime, totalCost, notes]);
         const newAppointmentId = appointmentRes.rows[0].id;
 
-        if (serviceIds.length > 0) {
-            const servicesInsertQuery = 'INSERT INTO appointment_services (appointment_id, service_id) SELECT $1, unnest($2::int[]);';
-            await db.query(servicesInsertQuery, [newAppointmentId, serviceIds]);
-        }
+        const servicesInsertQuery = 'INSERT INTO appointment_services (appointment_id, service_id) SELECT $1, unnest($2::int[]);';
+        await db.query(servicesInsertQuery, [newAppointmentId, serviceIds]);
 
         await db.query('COMMIT');
-
+        
         const finalQuery = `
-            SELECT 
-                a.id, a.client_id, c.first_name, c.last_name,
-                a.appointment_date, a.appointment_time,
-                a.cost, a.status, a.notes,
-                COALESCE(array_agg(s.id) FILTER (WHERE s.id IS NOT NULL), '{}') AS service_ids
-            FROM appointments a
-            JOIN clients c ON a.client_id = c.id
-            LEFT JOIN appointment_services aps ON a.id = aps.appointment_id
-            LEFT JOIN services s ON aps.service_id = s.id
-            WHERE a.id = $1
+            SELECT a.*, c.first_name, c.last_name, COALESCE(array_agg(aps.service_id) FILTER (WHERE aps.service_id IS NOT NULL), '{}') AS service_ids 
+            FROM appointments a 
+            JOIN clients c ON a.client_id = c.id 
+            LEFT JOIN appointment_services aps ON a.id = aps.appointment_id 
+            WHERE a.id = $1 AND a.business_id = $2 
             GROUP BY a.id, c.id;
         `;
-        const finalRes = await db.query(finalQuery, [newAppointmentId]);
+        const finalRes = await db.query(finalQuery, [newAppointmentId, businessId]);
         const newAppointment = finalRes.rows[0];
 
         res.status(201).json({
@@ -108,49 +105,48 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
-// PUT /api/appointments/:id -> Actualizar una cita
+// PUT /api/appointments/:id -> Actualizar una cita DEL NEGOCIO
 router.put('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     const { clientId, appointmentDate, appointmentTime, status, notes, serviceIds } = req.body;
     
     const client = await db.query('BEGIN');
     try {
         const servicesQuery = 'SELECT SUM(price) as total FROM services WHERE id = ANY($1::int[]) AND business_id = $2';
-        const servicesRes = await db.query(servicesQuery, [serviceIds, businessId]);
+        const servicesRes = await db.query(servicesQuery, [serviceIds || [], businessId]);
         const finalCost = servicesRes.rows[0].total || 0;
 
         const updateAppointmentQuery = `
             UPDATE appointments 
             SET client_id = $1, appointment_date = $2, appointment_time = $3, cost = $4, status = $5, notes = $6
-            WHERE id = $7 AND business_id = $8;
+            WHERE id = $7 AND business_id = $8
+            RETURNING *;
         `;
-        await db.query(updateAppointmentQuery, [clientId, appointmentDate, appointmentTime, finalCost, status, notes, id, businessId]);
+        const updateRes = await db.query(updateAppointmentQuery, [clientId, appointmentDate, appointmentTime, finalCost, status, notes, id, businessId]);
 
-        if (serviceIds) {
-            await db.query('DELETE FROM appointment_services WHERE appointment_id = $1', [id]);
-            if (serviceIds.length > 0) {
-                const servicesInsertQuery = 'INSERT INTO appointment_services (appointment_id, service_id) SELECT $1, unnest($2::int[]);';
-                await db.query(servicesInsertQuery, [id, serviceIds]);
-            }
+        if (updateRes.rowCount === 0) {
+            await db.query('ROLLBACK');
+            return res.status(404).json({ message: "Cita no encontrada en este negocio." });
+        }
+
+        await db.query('DELETE FROM appointment_services WHERE appointment_id = $1', [id]);
+        if (serviceIds && serviceIds.length > 0) {
+            const servicesInsertQuery = 'INSERT INTO appointment_services (appointment_id, service_id) SELECT $1, unnest($2::int[]);';
+            await db.query(servicesInsertQuery, [id, serviceIds]);
         }
         
         await db.query('COMMIT');
         
         const finalQuery = `
-            SELECT 
-                a.id, a.client_id, c.first_name, c.last_name,
-                a.appointment_date, a.appointment_time,
-                a.cost, a.status, a.notes,
-                COALESCE(array_agg(s.id) FILTER (WHERE s.id IS NOT NULL), '{}') AS service_ids
-            FROM appointments a
-            JOIN clients c ON a.client_id = c.id
-            LEFT JOIN appointment_services aps ON a.id = aps.appointment_id
-            LEFT JOIN services s ON aps.service_id = s.id
-            WHERE a.id = $1
+            SELECT a.*, c.first_name, c.last_name, COALESCE(array_agg(aps.service_id) FILTER (WHERE aps.service_id IS NOT NULL), '{}') AS service_ids 
+            FROM appointments a 
+            JOIN clients c ON a.client_id = c.id 
+            LEFT JOIN appointment_services aps ON a.id = aps.appointment_id 
+            WHERE a.id = $1 AND a.business_id = $2 
             GROUP BY a.id, c.id;
         `;
-        const finalRes = await db.query(finalQuery, [id]);
+        const finalRes = await db.query(finalQuery, [id, businessId]);
         const updatedApp = finalRes.rows[0];
         
         res.json({
@@ -173,17 +169,14 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
 });
 
-// DELETE /api/appointments/:id -> Eliminar una cita
+// DELETE /api/appointments/:id -> Eliminar una cita DEL NEGOCIO
 router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     try {
-        const result = await db.query(
-            'DELETE FROM appointments WHERE id = $1 AND business_id = $2',
-            [id, businessId]
-        );
+        const result = await db.query('DELETE FROM appointments WHERE id = $1 AND business_id = $2', [id, businessId]);
         if (result.rowCount === 0) {
-            return res.status(404).json({ message: "Cita no encontrada o no pertenece a este negocio." });
+            return res.status(404).json({ message: "Cita no encontrada en este negocio." });
         }
         res.status(204).send();
     } catch (error) {

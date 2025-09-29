@@ -5,7 +5,7 @@ const { verifyToken } = require('../middleware/authMiddleware');
 
 router.post('/generate-message', verifyToken, async (req, res) => {
     const { clientId, messageType, businessName } = req.body;
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
 
     if (!clientId || !messageType || !businessName) {
         return res.status(400).json({ message: "Faltan datos para generar el mensaje." });
@@ -14,7 +14,7 @@ router.post('/generate-message', verifyToken, async (req, res) => {
     try {
         const clientRes = await db.query('SELECT first_name FROM clients WHERE id = $1 AND business_id = $2', [clientId, businessId]);
         if (clientRes.rows.length === 0) {
-            return res.status(404).json({ message: "Cliente no encontrado." });
+            return res.status(404).json({ message: "Cliente no encontrado en este negocio." });
         }
         const clientName = clientRes.rows[0].first_name;
 
@@ -36,11 +36,11 @@ router.post('/generate-message', verifyToken, async (req, res) => {
                      FROM appointments a
                      LEFT JOIN appointment_services aps ON a.id = aps.appointment_id
                      LEFT JOIN services s ON aps.service_id = s.id
-                     WHERE a.client_id = $1 AND a.status = 'Falta Pago'
+                     WHERE a.client_id = $1 AND a.status = 'Falta Pago' AND a.business_id = $2
                      GROUP BY a.id
                      ORDER BY a.appointment_date DESC, a.appointment_time DESC
                      LIMIT 1`,
-                    [clientId]
+                    [clientId, businessId]
                 );
 
                 if (appointmentRes.rows.length > 0) {
