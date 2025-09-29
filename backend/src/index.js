@@ -9,11 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- MODIFICACIÓN 1: Servir archivos estáticos de React ---
-// Le decimos a Express que sirva los archivos del frontend desde la carpeta 'dist'
-// IMPORTANTE: Esta ruta asume que tienes una carpeta 'frontend' y 'backend' al mismo nivel.
-// Ejemplo: /Multi-Plataforma/frontend/dist
-app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+// --- MODIFICACIÓN: CORREGIR RUTA A ARCHIVOS ESTÁTICOS ---
+// Ajustamos la ruta para que coincida con la estructura de carpetas de Render.
+// Cambiamos de '../../' a '../../../' para subir un nivel más.
+app.use(express.static(path.join(__dirname, '../../../frontend/dist')));
 
 
 // --- Centralizamos todas las rutas de la API bajo /api ---
@@ -53,11 +52,10 @@ const aiRoutes = require('./routes/aiRoutes');
 apiRouter.use('/ai', aiRoutes);
 
 
-// --- MODIFICACIÓN 2: Manejador "Catch-All" con Regex (Solución Definitiva) ---
-// Esto captura cualquier ruta que NO comience con /api y le sirve tu app de React.
-// Debe ir al FINAL, después de todas las rutas de API.
+// --- MODIFICACIÓN: CORREGIR RUTA EN "CATCH-ALL" ---
+// Ajustamos también esta ruta para que apunte al 'index.html' correcto.
 app.get(/^(?!\/api).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/dist', 'index.html'));
+  res.sendFile(path.join(__dirname, '../../../frontend/dist', 'index.html'));
 });
 
 
@@ -67,4 +65,3 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
-
