@@ -23,6 +23,10 @@ router.get('/dashboard', verifyToken, async (req, res) => {
             type: b.type,
             profile: {
                 salonName: b.salon_name
+            },
+            themeSettings: {
+                primaryColor: b.theme_primary_color || 'Rosa', // Usamos 'Rosa' para coincidir con el frontend
+                backgroundColor: b.theme_background_color || 'Blanco'
             }
         }));
 
@@ -35,7 +39,6 @@ router.get('/dashboard', verifyToken, async (req, res) => {
             businessId: u.business_id
         }));
 
-        // --- INICIO DE LA CORRECCIÓN ---
         // Formateamos los datos de las suscripciones a camelCase
         const subscriptions = subscriptionsRes.rows.map(s => ({
             id: s.id,
@@ -45,7 +48,6 @@ router.get('/dashboard', verifyToken, async (req, res) => {
             startDate: s.start_date,
             endDate: s.end_date
         }));
-        // --- FIN DE LA CORRECCIÓN ---
 
         res.json({
             businesses: businesses,
