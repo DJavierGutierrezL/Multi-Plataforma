@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Page, Profile, Prices, Appointment, Client, Product, User, Business, UserRole, BusinessType, ThemeSettings, PrimaryColor, BackgroundColor, Plan, Subscription, Payment, SubscriptionStatus, RegistrationData, Service } from './types';
 import * as apiService from './services/apiService';
 import toast, { Toaster } from 'react-hot-toast';
@@ -73,78 +73,54 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // --- INICIO DE LA CORRECCIÓN ---
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    setCurrentUser(null);
-    setImpersonatedBusinessId(null);
-    setCurrentPage(Page.Dashboard);
-    setViewState('landing');
-    setBusinesses([]);
-    setUsers([]);
-    setPlans([]);
-    setSubscriptions([]);
-    setPayments([]);
-    setClients([]);
-    setAppointments([]);
-    setProducts([]);
-    setServices([]);
-  }, []);
-
-  const fetchDataForUser = useCallback(async (user: User) => {
-    setIsLoading(true);
-    try {
-        if (user.role === UserRole.SuperAdmin) {
-            const data = await apiService.getSuperAdminDashboardData();
-            setBusinesses(data.businesses || []);
-            setUsers(data.users || []);
-            setPlans(data.plans || []);
-            setSubscriptions(data.subscriptions || []);
-        } else if (user.businessId) {
-            const data = await apiService.getBusinessData();
-            setBusinesses(data.business ? [data.business] : []);
-            setClients(data.clients || []);
-            setServices(data.services || []);
-            setAppointments(data.appointments || []);
-            setPlans(data.plans || []);
-            setSubscriptions(data.subscriptions || []);
-            setPayments(data.payments || []);
-        }
-    } catch (error) {
-        console.error("Failed to fetch data:", error);
-        handleLogout();
-        toast.error('Falló la carga de datos. Por favor, inicia sesión de nuevo.');
-    } finally {
-        setIsLoading(false);
-    }
-  }, [handleLogout]);
-
   useEffect(() => {
     const checkSession = async () => {
-        setIsLoading(true);
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            try {
-                const data = await apiService.verifyToken();
-                if (data.user) {
-                    setCurrentUser(data.user);
-                    await fetchDataForUser(data.user);
-                } else {
-                    handleLogout();
-                }
-            } catch (error) {
-                handleLogout();
-            }
+        try {
+            const data = await apiService.verifyToken();
+            if (data.user) setCurrentUser(data.user);
+        } catch (error) {
+            localStorage.removeItem('authToken');
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
     checkSession();
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
     if (savedTheme) setTheme(savedTheme);
     else if (prefersDark) setTheme('dark');
-  }, [fetchDataForUser, handleLogout]);
+  }, []);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+        if (!currentUser) return;
+        setIsLoading(true);
+        try {
+            if (currentUser.role === UserRole.SuperAdmin) {
+                const data = await apiService.getSuperAdminDashboardData();
+                setBusinesses(data.businesses || []);
+                setUsers(data.users || []);
+                setPlans(data.plans || []);
+                setSubscriptions(data.subscriptions || []);
+            } else if (currentUser.businessId) {
+                const data = await apiService.getBusinessData();
+                setBusinesses(data.business ? [data.business] : []);
+                setClients(data.clients || []);
+                setServices(data.services || []);
+                setAppointments(data.appointments || []);
+                setPlans(data.plans || []);
+                setSubscriptions(data.subscriptions || []);
+                setPayments(data.payments || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+            handleLogout();
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
+  }, [currentUser]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -154,21 +130,26 @@ const App: React.FC = () => {
   }, [theme]);
 
   const handleLogin = async (username: string, password: string) => {
-    const { user, token } = await apiService.login(username, password);
+    const { user, token, business } = await apiService.login(username, password);
     localStorage.setItem('authToken', token);
+    if (business) setBusinesses([business]);
     setCurrentUser(user);
-    await fetchDataForUser(user);
     toast.success(`¡Bienvenido, ${user.username}!`);
   };
 
-  // --- FIN DE LA CORRECCIÓN ---
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    setCurrentUser(null);
+    setImpersonatedBusinessId(null);
+    setCurrentPage(Page.Dashboard);
+    setViewState('landing');
+  };
 
   const handleRegister = async (data: RegistrationData) => {
     try {
       const { user, token } = await apiService.register(data);
       localStorage.setItem('authToken', token);
       setCurrentUser(user);
-      await fetchDataForUser(user);
       toast.success('¡Registro exitoso!');
     } catch (error) {
       console.error("Error en el registro:", error);
@@ -374,7 +355,7 @@ const App: React.FC = () => {
         return <LandingPage onLoginClick={() => setViewState('login')} onRegister={handleRegister} plans={plans} />;
     }
     if (viewState === 'login') {
-        return <Login onLogin={handleLogin} onBackToLanding={() => setViewState('landing')} theme={theme} onThemeChange={setTheme} />;
+        return <Login onLogin={handleLogin} theme={theme} onThemeChange={setTheme} onBackToLanding={() => setViewState('landing')} />;
     }
   }
 
@@ -493,3 +474,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
