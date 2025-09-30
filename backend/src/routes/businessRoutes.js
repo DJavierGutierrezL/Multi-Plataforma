@@ -42,7 +42,7 @@ router.get('/my-data', verifyToken, async (req, res) => {
         const formattedBusiness = {
             id: business.id, type: business.type,
             profile: { salonName: business.salon_name, accountNumber: business.account_number },
-            themeSettings: { primaryColor: business.theme_primary_color || 'Pink', backgroundColor: business.theme_background_color || 'Blanco' }
+            themeSettings: { primaryColor: business.theme_primary_color || 'Rosa', backgroundColor: business.theme_background_color || 'Blanco' }
         };
 
         const formattedSubscriptions = subscriptionsRes.rows.map(s => ({ id: s.id, businessId: s.business_id, planId: s.plan_id, status: s.status, startDate: s.start_date, endDate: s.end_date }));
