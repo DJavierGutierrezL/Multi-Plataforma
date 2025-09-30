@@ -25,7 +25,8 @@ router.get('/dashboard', verifyToken, async (req, res) => {
                 salonName: b.salon_name
             },
             themeSettings: {
-                primaryColor: b.theme_primary_color || 'Rosa', // Usamos 'Rosa' para coincidir con el frontend
+                // --- LÍNEA MODIFICADA ---
+                primaryColor: b.theme_primary_color === 'Pink' ? 'Rosa' : b.theme_primary_color || 'Rosa',
                 backgroundColor: b.theme_background_color || 'Blanco'
             }
         }));
