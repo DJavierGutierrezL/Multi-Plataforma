@@ -4,7 +4,31 @@ const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 router.post('/', verifyToken, async (req, res) => {
-    // ... tu código para crear negocios sin cambios ...
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado.' });
+    }
+    const { salonName, type } = req.body;
+    if (!salonName || !type) {
+        return res.status(400).json({ message: 'Nombre y tipo son obligatorios.' });
+    }
+    try {
+        const query = `INSERT INTO businesses (salon_name, type) VALUES ($1, $2) RETURNING *;`;
+        const { rows } = await db.query(query, [salonName, type]);
+        const newBusiness = rows[0];
+        const formattedBusiness = {
+            id: newBusiness.id,
+            type: newBusiness.type,
+            profile: { salonName: newBusiness.salon_name },
+            themeSettings: {
+                primaryColor: 'Rosa',
+                backgroundColor: 'Blanco'
+            }
+        };
+        res.status(201).json(formattedBusiness);
+    } catch (error) {
+        console.error("Error al crear el negocio:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
 });
 
 router.get('/my-data', verifyToken, async (req, res) => {
@@ -65,7 +89,7 @@ router.get('/my-data', verifyToken, async (req, res) => {
             payments: [], clients: formattedClients, services: formattedServices, appointments: formattedAppointments
         });
     } catch (error) {
-        console.error("----------- ERROR CRÍTICO EN /my-data (VERSIÓN FINAL) -----------");
+        console.error("----------- ERROR CRÍTICO EN /my-data -----------");
         console.error("Business ID:", businessId);
         console.error("Detalles del Error:", error);
         res.status(500).json({ message: 'Error interno del servidor al cargar datos del negocio.' });
@@ -73,15 +97,68 @@ router.get('/my-data', verifyToken, async (req, res) => {
 });
 
 router.put('/profile', verifyToken, async (req, res) => {
-    // ... tu código para actualizar perfil sin cambios ...
+    const businessId = req.user.businessId;
+    const { salonName, accountNumber } = req.body;
+    try {
+        const query = `UPDATE businesses SET salon_name = $1, account_number = $2 WHERE id = $3 RETURNING salon_name, account_number`;
+        const { rows } = await db.query(query, [salonName, accountNumber, businessId]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Negocio no encontrado.' });
+        res.json({ salonName: rows[0].salon_name, accountNumber: rows[0].account_number });
+    } catch (error) {
+        console.error("Error al actualizar perfil:", error);
+        res.status(500).json({ message: 'Error interno.' });
+    }
 });
 
 router.delete('/:id', verifyToken, async (req, res) => {
-    // ... tu código para eliminar negocios sin cambios ...
+    if (req.user.role !== 'SuperAdmin') return res.status(403).json({ message: 'Acceso denegado.' });
+    const { id } = req.params;
+    try {
+        const result = await db.query('DELETE FROM businesses WHERE id = $1', [id]);
+        if (result.rowCount === 0) return res.status(404).json({ message: 'Negocio no encontrado.' });
+        res.status(204).send();
+    } catch (error) {
+        console.error("Error al eliminar el negocio:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
 });
 
 router.put('/theme', verifyToken, async (req, res) => {
-    // ... tu código para actualizar tema sin cambios ...
+    const businessId = req.user.role === 'SuperAdmin' ? req.body.businessIdForAdmin : req.user.businessId;
+    const { primaryColor, backgroundColor } = req.body;
+
+    const primaryColorForDb = primaryColor === 'Rosa' ? 'Pink' : primaryColor;
+
+    if (!primaryColor || !backgroundColor) {
+        return res.status(400).json({ message: "Se requieren ambos colores." });
+    }
+    if (!businessId) {
+        return res.status(403).json({ message: "ID de negocio no proporcionado." });
+    }
+
+    try {
+        const query = `
+            UPDATE businesses
+            SET theme_primary_color = $1, theme_background_color = $2
+            WHERE id = $3
+            RETURNING theme_primary_color, theme_background_color;
+        `;
+        const { rows } = await db.query(query, [primaryColorForDb, backgroundColor, businessId]);
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Negocio no encontrado." });
+        }
+
+        const updatedTheme = {
+            primaryColor: rows[0].theme_primary_color === 'Pink' ? 'Rosa' : rows[0].theme_primary_color,
+            backgroundColor: rows[0].theme_background_color
+        };
+        res.json(updatedTheme);
+
+    } catch (error) {
+        console.error("Error al actualizar el tema:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
 });
 
 module.exports = router;
