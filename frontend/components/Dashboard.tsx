@@ -234,19 +234,25 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                <div className="lg:col-span-3 bg-card p-6 rounded-2xl shadow-md border">
-                    <h3 className="text-xl font-semibold">{`Análisis de Ingresos (${fortnightLabel})`}</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={revenueData}>
-                            <XAxis dataKey="name" fontSize={12} />
-                            <YAxis tickFormatter={(value) => `$${(value/1000)}k`} fontSize={12} />
-                            <Tooltip formatter={(value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(value)} />
-                            <Legend />
-                            <Line type="monotone" dataKey="Ingresos" stroke="hsl(var(--primary))" strokeWidth={2} />
-                        </LineChart>
-                    </ResponsiveContainer>
+            <div className="lg:col-span-3 bg-card p-6 rounded-2xl shadow-md border">
+                <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <h3 className="text-xl font-semibold">{chartLabel}</h3>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handlePrevMonth} className="px-3 py-1 bg-muted text-muted-foreground rounded hover:bg-accent transition-colors">{"<"}</button>
+                        <button onClick={handleNextMonth} disabled={isNextMonthDisabled} className="px-3 py-1 bg-muted text-muted-foreground rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{">"}</button>
+                        {viewDate && <button onClick={() => setViewDate(null)} className="px-3 py-1 text-sm bg-primary/20 text-primary rounded hover:bg-primary/30 transition-colors">Quincena Actual</button>}
+                    </div>
                 </div>
+                <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={revenueData}>
+                        <XAxis dataKey="name" fontSize={12} />
+                        <YAxis tickFormatter={(value) => `$${(value/1000)}k`} fontSize={12} />
+                        <Tooltip formatter={(value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value)} />
+                        <Legend />
+                        <Line type="monotone" dataKey="Ingresos" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }}/>
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
                 <div className="lg:col-span-2 bg-card p-6 rounded-2xl shadow-md border">
                     <h3 className="text-xl font-semibold">Distribución de Citas</h3>
                     <ResponsiveContainer width="100%" height={300}>
