@@ -9,6 +9,7 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+  // Tu lógica de useEffect para la tecla 'Escape' y el scroll del body está perfecta.
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -36,19 +37,26 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       aria-modal="true"
       aria-labelledby="modal-title"
     >
+      {/* --- CONTENEDOR PRINCIPAL MODIFICADO --- */}
       <div 
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 md:p-8 m-2 sm:m-4 relative"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg m-2 sm:m-4 flex flex-col max-h-[90vh]" // Se añade flex, flex-col y max-h-[90vh]. Se quita el padding (p-6).
         onClick={(e) => e.stopPropagation()}
         style={{ animation: 'fade-in-up 0.3s ease-out' }}
       >
-        <div className="flex justify-between items-center mb-4 sm:mb-6">
+        {/* --- ENCABEZADO FIJO MODIFICADO --- */}
+        <div className="flex-shrink-0 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 px-6 md:px-8 py-4">
           <h2 id="modal-title" className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-200">{title}</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1 rounded-full transition-colors">
             <XIcon className="w-6 h-6" />
           </button>
         </div>
-        {children}
+
+        {/* --- NUEVA ÁREA DE CONTENIDO CON SCROLL --- */}
+        <div className="flex-grow overflow-y-auto p-6 md:p-8">
+          {children}
+        </div>
       </div>
+      
       <style>{`
         @keyframes fade-in-up {
           from {
