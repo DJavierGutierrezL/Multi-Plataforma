@@ -109,7 +109,7 @@ const Clients: React.FC<ClientsProps> = ({ clients, onCreateClient, onUpdateClie
               placeholder="Buscar cliente por nombre o teléfono..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="w-full p-3 pl-10 border border-border rounded-lg text-foreground bg-input focus:ring-primary focus:border-primary transition-colors"
+              className="w-full p-3 pl-10 border border-border rounded-lg text-foreground bg-gray-900 focus:ring-primary focus:border-primary transition-colors"
           />
       </div>
 
