@@ -337,13 +337,15 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
                             </select>
                         </div>
                         <textarea name="notes" value={editFormState.notes || ''} onChange={handleEditFormChange} placeholder="Notas (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
-                        <div className="flex justify-end pt-4 space-x-4">
-    <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors">
-        <TrashIcon className="w-5 h-5" /> Eliminar
-    </button>
-    <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button>
-    <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90">Guardar Cambios</button>
-</div>
+                        <div className="flex justify-between items-center pt-4">
+                            <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700">
+                                <TrashIcon className="w-5 h-5" /> Eliminar
+                            </button>
+                            <div className="flex gap-4">
+                                <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button>
+                                <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90">Guardar Cambios</button>
+                            </div>
+                        </div>
                     </form>
                 )}
             </Modal>
