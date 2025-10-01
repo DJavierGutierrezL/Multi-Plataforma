@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Client } from '../types';
 import Modal from './Modal';
 import { PlusIcon } from './icons/PlusIcon';
@@ -6,6 +6,7 @@ import { UsersIcon } from './icons/UsersIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { AlertTriangleIcon } from './icons/AlertTriangleIcon';
+import { SearchIcon } from './icons/SearchIcon'; // Asegúrate de tener este ícono o uno similar
 
 interface ClientsProps {
   clients: Client[];
@@ -18,6 +19,11 @@ const Clients: React.FC<ClientsProps> = ({ clients, onCreateClient, onUpdateClie
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Partial<Client> | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+  // --- NUEVOS ESTADOS PARA BÚSQUEDA Y PAGINACIÓN ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const clientsPerPage = 10;
 
   const handleOpenCreateModal = () => {
     setEditingClient({});
@@ -65,6 +71,24 @@ const Clients: React.FC<ClientsProps> = ({ clients, onCreateClient, onUpdateClie
     handleCloseModal();
   }
 
+  // --- LÓGICA DE FILTRADO Y PAGINACIÓN ---
+  const filteredClients = useMemo(() => {
+    return clients.filter(client => {
+        const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
+        const phone = client.phone || '';
+        const query = searchQuery.toLowerCase();
+        return fullName.includes(query) || phone.includes(query);
+    });
+  }, [clients, searchQuery]);
+
+  const totalPages = Math.ceil(filteredClients.length / clientsPerPage);
+  const currentClients = filteredClients.slice((currentPage - 1) * clientsPerPage, currentPage * clientsPerPage);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Resetear a la primera página al buscar
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -75,10 +99,38 @@ const Clients: React.FC<ClientsProps> = ({ clients, onCreateClient, onUpdateClie
         </button>
       </div>
 
+      {/* --- CAMPO DE BÚSQUEDA --- */}
+      <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <SearchIcon className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <input
+              type="text"
+              placeholder="Buscar cliente por nombre o teléfono..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="w-full p-3 pl-10 border border-border rounded-lg text-foreground bg-input focus:ring-primary focus:border-primary transition-colors"
+          />
+      </div>
+
+
       <div className="bg-card p-6 rounded-2xl shadow-lg border border-border">
-        {clients.length > 0 ? (
+        {clients.length === 0 ? (
+          <div className="text-center text-muted-foreground py-12">
+            <UsersIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-xl font-semibold">Aún no tienes clientes registrados</h3>
+            <p className="mt-2">Haz clic en "Añadir Cliente" para empezar.</p>
+          </div>
+        ) : filteredClients.length === 0 ? (
+           <div className="text-center text-muted-foreground py-12">
+            <SearchIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-xl font-semibold">No se encontraron clientes</h3>
+            <p className="mt-2">Intenta con otro término de búsqueda.</p>
+          </div>
+        ) : (
           <div className="space-y-4">
-            {clients.map(client => (
+            {/* --- LISTA DE CLIENTES PAGINADA --- */}
+            {currentClients.map(client => (
               <div key={client.id} className="flex justify-between items-center p-4 bg-accent rounded-lg">
                 <div>
                   <p className="font-bold text-lg text-card-foreground">{client.firstName} {client.lastName}</p>
@@ -91,15 +143,34 @@ const Clients: React.FC<ClientsProps> = ({ clients, onCreateClient, onUpdateClie
               </div>
             ))}
           </div>
-        ) : (
-          <div className="text-center text-muted-foreground py-12">
-            <UsersIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-xl font-semibold">Aún no tienes clientes registrados</h3>
-            <p className="mt-2">Haz clic en "Añadir Cliente" para empezar.</p>
-          </div>
         )}
       </div>
 
+      {/* --- CONTROLES DE PAGINACIÓN --- */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-4 pt-4">
+            <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Anterior
+            </button>
+            <span className="text-foreground font-medium">
+                Página {currentPage} de {totalPages}
+            </span>
+            <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Siguiente
+            </button>
+        </div>
+      )}
+
+
+      {/* --- MODALES (sin cambios) --- */}
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingClient?.id ? "Editar Cliente" : "Crear Nuevo Cliente"}>
         <form onSubmit={handleSaveClient} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
