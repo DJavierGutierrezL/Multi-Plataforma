@@ -6,7 +6,7 @@ import { DollarSignIcon } from './icons/DollarSignIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { GiftIcon } from './icons/GiftIcon';
 import { HistoryIcon } from './icons/HistoryIcon';
-import Modal from './Modal'; // Ajusta esta ruta si tu componente Modal está en otro lugar
+import Modal from './Modal';
 
 // --- Definición de Props para el Componente ---
 interface DashboardProps {
@@ -55,53 +55,43 @@ const getStatusBadge = (status?: string) => {
     }
 };
 
-
 // --- Componente Principal del Dashboard ---
 const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, clients, services, onDeleteAppointment, onUpdateAppointment }) => {
     
-    // Estados para el modal de edición
     const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
     const [editFormState, setEditFormState] = useState<Appointment | null>(null);
-
-    // Estado para controlar el período de la gráfica de ingresos
     const [viewDate, setViewDate] = useState<Date | null>(null);
 
-    // Sincroniza el formulario del modal cuando se selecciona una cita
     useEffect(() => {
         if (editingAppointment) setEditFormState(editingAppointment);
     }, [editingAppointment]);
 
-    // Lógica para enriquecer las citas con nombres de clientes
     const appointments = useMemo(() => rawAppointments.map(app => {
         const client = clients.find(c => c.id === app.clientId);
         return { ...app, clientFirstName: client?.firstName, clientLastName: client?.lastName };
     }), [rawAppointments, clients]);
 
-    // LÓGICA PARA TARJETAS DE ESTADÍSTICAS (SIEMPRE MUESTRA LA QUINCENA ACTUAL)
     const { totalFortnightRevenue, completedAppointmentsThisFortnight } = useMemo(() => {
         const today = new Date();
         const startOfFortnight = new Date(today.getFullYear(), today.getMonth(), today.getDate() <= 15 ? 1 : 16);
         const endOfFortnight = new Date(today.getFullYear(), today.getMonth(), today.getDate() <= 15 ? 15 : new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate(), 23, 59, 59, 999);
-        
         const completed = appointments.filter(app => {
             if (app.status !== 'Completed' || !app.appointmentDate || !app.appointmentTime) return false;
             const appDate = new Date(`${app.appointmentDate}T${app.appointmentTime}`);
             return appDate >= startOfFortnight && appDate <= endOfFortnight;
         });
-        
         const totalRevenue = completed.reduce((total, app) => total + (Number(app.cost) || 0), 0);
         return { totalFortnightRevenue: totalRevenue, completedAppointmentsThisFortnight: completed };
     }, [appointments]);
 
-    // LÓGICA DINÁMICA PARA LA GRÁFICA DE INGRESOS
     const { chartStartDate, chartEndDate, chartLabel } = useMemo(() => {
         const now = new Date();
-        if (viewDate === null) { // Vista de Quincena Actual
+        if (viewDate === null) {
             const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() <= 15 ? 1 : 16);
             const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() <= 15 ? 15 : new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
             const label = `Análisis de Ingresos (${start.getDate()} - ${end.getDate()} de ${now.toLocaleDateString('es-ES', { month: 'long' })})`;
             return { chartStartDate: start, chartEndDate: end, chartLabel: label };
-        } else { // Vista Mensual
+        } else {
             const year = viewDate.getFullYear();
             const month = viewDate.getMonth();
             const start = new Date(year, month, 1);
@@ -117,21 +107,22 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
             const appDate = new Date(`${app.appointmentDate}T${app.appointmentTime}`);
             return appDate >= chartStartDate && appDate <= new Date(chartEndDate.getTime() + 86399999);
         });
-
         const dataMap = new Map<number, number>();
         for (let d = new Date(chartStartDate); d <= chartEndDate; d.setDate(d.getDate() + 1)) {
             dataMap.set(d.getDate(), 0);
         }
-        
         appointmentsInPeriod.forEach(app => {
             const day = new Date(`${app.appointmentDate}T${app.appointmentTime}`).getDate();
             dataMap.set(day, (dataMap.get(day) || 0) + Number(app.cost));
         });
-
         return Array.from(dataMap.entries()).map(([day, revenue]) => ({ name: String(day), Ingresos: revenue }));
     }, [appointments, chartStartDate, chartEndDate]);
+
+    // --- NUEVO: Cálculo del total de ingresos para la gráfica ---
+    const totalRevenueForChart = useMemo(() => {
+        return revenueData.reduce((sum, day) => sum + day.Ingresos, 0);
+    }, [revenueData]);
     
-    // Handlers para los botones de filtro de la gráfica
     const handlePrevMonth = () => setViewDate(current => new Date((current || new Date()).getFullYear(), (current || new Date()).getMonth() - 1, 1));
     const handleNextMonth = () => setViewDate(current => new Date((current || new Date()).getFullYear(), (current || new Date()).getMonth() + 1, 1));
     const isNextMonthDisabled = useMemo(() => {
@@ -140,53 +131,35 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
         return viewDate.getFullYear() >= now.getFullYear() && viewDate.getMonth() >= now.getMonth();
     }, [viewDate]);
 
-    // LÓGICA PARA GRÁFICO DE TORTA
     const statusPieData = useMemo(() => {
-        const counts = appointments.reduce((acc, app) => {
-            if (app.status) acc[app.status] = (acc[app.status] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-
-        const colors: Record<string, string> = {
-            [AppointmentStatus.Scheduled]: '#ec4899',
-            [AppointmentStatus.Completed]: '#60a5fa',
-            [AppointmentStatus.Canceled]: '#ef4444',
-            [AppointmentStatus.PaymentPending]: '#f97316'
-        };
-        
+        const counts = appointments.reduce((acc, app) => { if (app.status) acc[app.status] = (acc[app.status] || 0) + 1; return acc; }, {} as Record<string, number>);
+        const colors: Record<string, string> = { [AppointmentStatus.Scheduled]: '#ec4899', [AppointmentStatus.Completed]: '#60a5fa', [AppointmentStatus.Canceled]: '#ef4444', [AppointmentStatus.PaymentPending]: '#f97316' };
         return Object.entries(counts).map(([name, value]) => ({ name, value, fill: colors[name] || '#9ca3af' }));
     }, [appointments]);
     
-    // LÓGICA PARA CUMPLEAÑOS DE LA SEMANA
     const clientsWithBirthdaysThisWeek = useMemo(() => {
         const today = new Date();
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay()); 
         startOfWeek.setHours(0, 0, 0, 0);
-
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         endOfWeek.setHours(23, 59, 59, 999);
-
         return clients.filter(client => {
             if (!client.birthDate || typeof client.birthDate !== 'string') return false;
             const parts = client.birthDate.split('-');
             if (parts.length < 3) return false;
-
             const birthMonth = parseInt(parts[1], 10) - 1;
             const birthDay = parseInt(parts[2], 10);
-
             const birthdayThisYear = new Date(today.getFullYear(), birthMonth, birthDay);
             return birthdayThisYear >= startOfWeek && birthdayThisYear <= endOfWeek;
         });
     }, [clients]);
 
-    // LÓGICA PARA FILTROS DE LA TABLA DE HISTORIAL
     const [statusFilter, setStatusFilter] = useState('');
     const [clientFilter, setClientFilter] = useState('');
     const [monthFilter, setMonthFilter] = useState('');
     const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
     const filteredAppointments = useMemo(() => {
         return appointments.filter(app => {
             const statusMatch = !statusFilter || app.status === statusFilter;
@@ -196,52 +169,17 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
         }).sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
     }, [appointments, statusFilter, clientFilter, monthFilter]);
 
-    // FUNCIONES PARA MANEJAR EL MODAL
-    const handleOpenEditModal = (appointmentId: string) => {
-        const appointmentToEdit = rawAppointments.find(app => app.id === appointmentId);
-        if (appointmentToEdit) setEditingAppointment(appointmentToEdit);
-    };
-
-    const handleCloseModal = () => {
-        setEditingAppointment(null);
-        setEditFormState(null);
-    };
-
-    const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        if (editFormState) setEditFormState({ ...editFormState, [e.target.name]: e.target.value });
-    };
-
-    const handleServiceChange = (serviceId: string) => {
-        if (!editFormState) return;
-        const currentServiceIds = editFormState.serviceIds || [];
-        const newServiceIds = currentServiceIds.includes(serviceId) ? currentServiceIds.filter(id => id !== serviceId) : [...currentServiceIds, serviceId];
-        const updatedCost = services.filter(s => newServiceIds.includes(s.id)).reduce((total, s) => total + s.price, 0);
-        setEditFormState({ ...editFormState, serviceIds: newServiceIds, cost: updatedCost });
-    };
-
-    const handleUpdateAppointment = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (editFormState) {
-            onUpdateAppointment(editFormState.id, editFormState);
-            handleCloseModal();
-        }
-    };
-
-    const handleDeleteFromModal = () => {
-        if (editFormState && window.confirm('¿Estás seguro?')) {
-            onDeleteAppointment(editFormState.id);
-            handleCloseModal();
-        }
-    };
-    
-    const handleDeleteFromTable = (appointmentId: string) => {
-        if (window.confirm('¿Estás seguro?')) onDeleteAppointment(appointmentId);
-    };
+    const handleOpenEditModal = (appointmentId: string) => { const appointmentToEdit = rawAppointments.find(app => app.id === appointmentId); if (appointmentToEdit) setEditingAppointment(appointmentToEdit); };
+    const handleCloseModal = () => { setEditingAppointment(null); setEditFormState(null); };
+    const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { if (editFormState) setEditFormState({ ...editFormState, [e.target.name]: e.target.value }); };
+    const handleServiceChange = (serviceId: string) => { if (!editFormState) return; const currentServiceIds = editFormState.serviceIds || []; const newServiceIds = currentServiceIds.includes(serviceId) ? currentServiceIds.filter(id => id !== serviceId) : [...currentServiceIds, serviceId]; const updatedCost = services.filter(s => newServiceIds.includes(s.id)).reduce((total, s) => total + s.price, 0); setEditFormState({ ...editFormState, serviceIds: newServiceIds, cost: updatedCost }); };
+    const handleUpdateAppointment = (e: React.FormEvent) => { e.preventDefault(); if (editFormState) { onUpdateAppointment(editFormState.id, editFormState); handleCloseModal(); } };
+    const handleDeleteFromModal = () => { if (editFormState && window.confirm('¿Estás seguro?')) { onDeleteAppointment(editFormState.id); handleCloseModal(); } };
+    const handleDeleteFromTable = (appointmentId: string) => { if (window.confirm('¿Estás seguro?')) onDeleteAppointment(appointmentId); };
     
     return (
         <>
             <div className="space-y-8">
-                {/* --- Tarjetas de Estadísticas --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <StatCard title="Ingresos (Quincena)" value={new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalFortnightRevenue)} icon={<DollarSignIcon className="w-6 h-6" />} color="bg-green-100 text-green-800" />
                     <StatCard title="Citas Completadas (Quincena)" value={completedAppointmentsThisFortnight.length} icon={<CalendarIcon className="w-6 h-6" />} color="bg-blue-100 text-blue-800" />
@@ -249,17 +187,22 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                    {/* --- Gráfica de Ingresos con Filtros --- */}
+                    {/* --- [MODIFICADO] Gráfica de Ingresos con Total --- */}
                     <div className="lg:col-span-3 bg-card p-6 rounded-2xl shadow-md border">
-                        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-                            <h3 className="text-xl font-semibold">{chartLabel}</h3>
-                            <div className="flex items-center gap-2">
+                        <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
+                            <div>
+                                <h3 className="text-xl font-semibold text-card-foreground">{chartLabel}</h3>
+                                <p className="text-3xl font-bold text-primary mt-1">
+                                    {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalRevenueForChart)}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
                                 <button onClick={handlePrevMonth} className="px-3 py-1 bg-muted text-muted-foreground rounded hover:bg-accent transition-colors">{"<"}</button>
                                 <button onClick={handleNextMonth} disabled={isNextMonthDisabled} className="px-3 py-1 bg-muted text-muted-foreground rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{">"}</button>
                                 {viewDate && <button onClick={() => setViewDate(null)} className="px-3 py-1 text-sm bg-primary/20 text-primary rounded hover:bg-primary/30 transition-colors">Quincena Actual</button>}
                             </div>
                         </div>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer width="100%" height={280}>
                             <LineChart data={revenueData}>
                                 <XAxis dataKey="name" fontSize={12} />
                                 <YAxis tickFormatter={(value) => `$${(value/1000)}k`} fontSize={12} />
@@ -270,7 +213,6 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
                         </ResponsiveContainer>
                     </div>
 
-                    {/* --- Gráfico de Torta --- */}
                     <div className="lg:col-span-2 bg-card p-6 rounded-2xl shadow-md border">
                         <h3 className="text-xl font-semibold">Distribución de Citas</h3>
                         <ResponsiveContainer width="100%" height={300}>
@@ -285,7 +227,6 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
                     </div>
                 </div>
 
-                {/* --- Tabla de Historial y Cumpleaños --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 bg-card p-6 rounded-2xl shadow-md border">
                         <h3 className="text-xl font-semibold mb-4 flex items-center"><HistoryIcon className="w-6 h-6 mr-3"/> Historial de Servicios</h3>
@@ -356,7 +297,6 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
                 </div>
             </div>
 
-            {/* --- Modal de Edición --- */}
             <Modal isOpen={!!editingAppointment} onClose={handleCloseModal} title="Editar Cita">
                 {editFormState && (
                     <form onSubmit={handleUpdateAppointment} className="space-y-4">
@@ -414,4 +354,3 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
 };
 
 export default Dashboard;
-
