@@ -8,11 +8,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Sirve los archivos estáticos de la aplicación de React ---
-const buildPath = path.join(__dirname, '../../frontend/build');
-app.use(express.static(buildPath));
-
-// --- Rutas de la API ---
+// --- 1. Rutas de la API (Primero) ---
+// Se definen antes que los archivos estáticos para que siempre tengan prioridad.
 const apiRouter = express.Router();
 app.use('/api', apiRouter);
 
@@ -28,16 +25,22 @@ apiRouter.use('/services', require('./routes/serviceRoutes'));
 apiRouter.use('/appointments', require('./routes/appointmentRoutes'));
 apiRouter.use('/ai', require('./routes/aiRoutes'));
 
-// --- Ruta "Catch-all" ---
-app.get('/*', (req, res) => {
+
+// --- 2. Sirve los archivos estáticos de React (Después de la API) ---
+const buildPath = path.join(__dirname, '../../frontend/build');
+app.use(express.static(buildPath));
+
+
+// --- 3. Ruta "Catch-all" con Expresión Regular (Al final) ---
+// Esta expresión regular captura cualquier ruta GET que NO comience con /api.
+app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(buildPath, 'index.html'));
 });
 
-const PORT = process.env.PORT || 3001;
-const HOST = '0.0.0.0'; // Define el host para aceptar conexiones externas
 
-// --- Inicia el servidor ---
-// Se añade HOST a la función listen para que sea accesible públicamente
+const PORT = process.env.PORT || 3001;
+const HOST = '0.0.0.0';
+
 app.listen(PORT, HOST, () => {
   console.log(`Servidor API escuchando en el puerto ${PORT}`);
 });
