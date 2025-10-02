@@ -24,6 +24,7 @@ apiRouter.use('/clients', require('./routes/clientRoutes'));
 apiRouter.use('/services', require('./routes/serviceRoutes'));
 apiRouter.use('/appointments', require('./routes/appointmentRoutes'));
 apiRouter.use('/ai', require('./routes/aiRoutes'));
+apiRouter.use('/inventory', require('./routes/inventoryRoutes'));
 
 
 // --- 2. Sirve los archivos estáticos de React (Después de la API) ---
