@@ -73,7 +73,7 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
     <div className="bg-accent p-4 rounded-lg flex items-center">
         <div className="p-3 rounded-full bg-primary/20 text-primary mr-4">{icon}</div>
         <div>
-            <p className="text-sm text-muted-foreground font-semibold">{title}</p>
+            <p className="text-sm text-muted-foreground font-semibold capitalize">{title}</p>
             <p className="text-xl font-bold text-card-foreground">{value}</p>
         </div>
     </div>
@@ -157,7 +157,6 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
   
   // --- Funciones para GASTOS (actualizadas) ---
   const handleOpenAddExpenseModal = () => {
-      // Establece la fecha de hoy por defecto en formato YYYY-MM-DD
       setCurrentExpense({ date: new Date().toISOString().split('T')[0] });
       setIsExpenseModalOpen(true);
   };
@@ -177,17 +176,20 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
   const handleSaveExpense = (e: React.FormEvent) => {
       e.preventDefault();
       if (!currentExpense || !currentExpense.description || !currentExpense.amount || !currentExpense.date) {
-        // Se reemplaza alert por un toast o console.log para evitar bloquear la UI
         console.error('Por favor, rellena todos los campos.');
         return;
       }
       
+      // Ajusta la fecha para evitar problemas de zona horaria al guardar
+      const date = new Date(currentExpense.date);
+      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+      const dateInUTC = new Date(date.getTime() + userTimezoneOffset);
+
       const newExpense: Expense = {
           id: Date.now(),
           description: currentExpense.description,
           amount: currentExpense.amount,
-          // Convierte la fecha del input (YYYY-MM-DD) a un formato ISO completo para consistencia
-          date: new Date(currentExpense.date).toISOString(),
+          date: dateInUTC.toISOString(),
       };
       setExpenses([newExpense, ...expenses]);
       handleCloseModals();
@@ -198,22 +200,47 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
       handleCloseModals();
   };
 
+  const formatMonthForDisplay = (monthString: string) => {
+    const [year, month] = monthString.split('-');
+    const date = new Date(Number(year), Number(month) - 1);
+    return date.toLocaleString('es-CO', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  };
+  
   const expenseTotals = useMemo(() => {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        const startOfFortnight = new Date(today);
-        startOfFortnight.setDate(today.getDate() - 15);
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const filterAndSum = (startDate: Date) => expenses.filter(e => new Date(e.date) >= startDate).reduce((sum, e) => sum + e.amount, 0);
-        return {
-            day: filterAndSum(today),
-            week: filterAndSum(startOfWeek),
-            fortnight: filterAndSum(startOfFortnight),
-            month: filterAndSum(startOfMonth)
-        };
-  }, [expenses]);
+    // --- Cálculos de fecha basados en UTC para mayor precisión ---
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const startOfWeekUTC = new Date(todayUTC);
+    startOfWeekUTC.setUTCDate(todayUTC.getUTCDate() - todayUTC.getUTCDay());
+    const startOfFortnightUTC = new Date(todayUTC);
+    startOfFortnightUTC.setUTCDate(todayUTC.getUTCDate() - 15);
+    const startOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+    const filterAndSum = (startDate: Date) => expenses
+      .filter(e => new Date(e.date) >= startDate)
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    // --- Lógica para la tarjeta de gasto mensual dinámica ---
+    let monthlyDisplayTotal;
+    let monthlyDisplayTitle = "Gasto Mensual";
+
+    if (filterMonth === 'all') {
+      monthlyDisplayTotal = filterAndSum(startOfMonthUTC);
+    } else {
+      monthlyDisplayTotal = expenses
+        .filter(e => e.date.startsWith(filterMonth))
+        .reduce((sum, e) => sum + e.amount, 0);
+      monthlyDisplayTitle = `Gasto de ${formatMonthForDisplay(filterMonth)}`;
+    }
+
+    return {
+        day: filterAndSum(todayUTC),
+        week: filterAndSum(startOfWeekUTC),
+        fortnight: filterAndSum(startOfFortnightUTC),
+        month: monthlyDisplayTotal,
+        monthTitle: monthlyDisplayTitle,
+    };
+  }, [expenses, filterMonth]);
     
   const availableMonths = useMemo(() => {
     const monthSet = new Set(expenses.map(e => e.date.substring(0, 7))); // Extrae 'YYYY-MM'
@@ -228,12 +255,6 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
   }, [expenses, filterMonth]);
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
-  
-  const formatMonthForDisplay = (monthString: string) => { // 'YYYY-MM'
-    const [year, month] = monthString.split('-');
-    const date = new Date(Number(year), Number(month) - 1);
-    return date.toLocaleString('es-CO', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  };
 
   return (
     <>
@@ -305,7 +326,7 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
                 <StatCard title="Gasto de Hoy" value={formatCurrency(expenseTotals.day)} icon={<DollarSignIcon className="w-6 h-6"/>} />
                 <StatCard title="Gasto Semanal" value={formatCurrency(expenseTotals.week)} icon={<DollarSignIcon className="w-6 h-6"/>} />
                 <StatCard title="Gasto Quincenal" value={formatCurrency(expenseTotals.fortnight)} icon={<DollarSignIcon className="w-6 h-6"/>} />
-                <StatCard title="Gasto Mensual" value={formatCurrency(expenseTotals.month)} icon={<DollarSignIcon className="w-6 h-6"/>} />
+                <StatCard title={expenseTotals.monthTitle} value={formatCurrency(expenseTotals.month)} icon={<DollarSignIcon className="w-6 h-6"/>} />
             </div>
             
             <div className="mb-4 flex justify-end">
@@ -421,4 +442,3 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
 };
 
 export default Inventory;
-
