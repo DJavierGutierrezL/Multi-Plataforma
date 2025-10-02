@@ -229,3 +229,38 @@ export const generateAiMessage = async (clientId: number, messageType: string, b
     });
 };
 
+export const getProducts = async () => {
+    return await request('/inventory/products');
+};
+
+export const createProduct = async (productData) => {
+    return await request('/inventory/products', {
+        method: 'POST',
+        body: JSON.stringify(productData),
+    });
+};
+
+export const deleteProduct = async (productId) => {
+    return await request(`/inventory/products/${productId}`, {
+        method: 'DELETE',
+    });
+};
+
+// --- Funciones para Gastos ---
+export const getExpenses = async () => {
+    return await request('/inventory/expenses');
+};
+
+export const createExpense = async (expenseData) => {
+    return await request('/inventory/expenses', {
+        method: 'POST',
+        body: JSON.stringify(expenseData),
+    });
+};
+
+export const deleteExpense = async (expenseId) => {
+    return await request(`/inventory/expenses/${expenseId}`, {
+        method: 'DELETE',
+    });
+};
+

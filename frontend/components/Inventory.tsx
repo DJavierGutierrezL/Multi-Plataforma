@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../types';
 
-// --- Componentes de Íconos y Modal (Definidos localmente para solucionar errores) ---
+// --- Componentes de Íconos y Modal (Definidos localmente) ---
 
 const BoxIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -59,14 +59,17 @@ interface Expense {
     id: number;
     description: string;
     amount: number;
-    date: string; // Guardaremos la fecha como un string en formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
+    date: string; // Formato ISO
 }
 
+// --- INTERFAZ DE PROPS ACTUALIZADA ---
 interface InventoryAndExpensesProps {
     products: Product[];
-    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
     expenses: Expense[];
-    setExpenses: React.Dispatch<React.SetStateAction<Expense[]>>;
+    onCreateProduct: (productData: Omit<Product, 'id' | 'businessId'>) => Promise<void>;
+    onDeleteProduct: (productId: number) => Promise<void>;
+    onCreateExpense: (expenseData: Omit<Expense, 'id' | 'businessId'>) => Promise<void>;
+    onDeleteExpense: (expenseId: number) => Promise<void>;
 }
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }> = ({ title, value, icon }) => (
@@ -79,24 +82,30 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
     </div>
 );
 
-
-const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts, expenses, setExpenses }) => {
+// --- COMPONENTE ACTUALIZADO PARA USAR PROPS ---
+const Inventory: React.FC<InventoryAndExpensesProps> = ({
+    products,
+    expenses,
+    onCreateProduct,
+    onDeleteProduct,
+    onCreateExpense,
+    onDeleteExpense,
+}) => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'expenses'>('inventory');
 
-  // --- Estados y Lógica para INVENTARIO ---
+  // Estados locales para manejar los modales y formularios
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isDeleteProductModalOpen, setIsDeleteProductModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Partial<Product> | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  // --- Estados y Lógica para GASTOS ---
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isDeleteExpenseModalOpen, setIsDeleteExpenseModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState<Partial<Expense> | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-  const [filterMonth, setFilterMonth] = useState<string>('all'); // Estado para el filtro de mes
+  const [filterMonth, setFilterMonth] = useState<string>('all');
 
-  // --- Funciones para INVENTARIO ---
+  // --- Funciones de UI (sin cambios) ---
   const getStockColor = (current: number, min: number): string => {
     if (min <= 0) return 'bg-green-500';
     const percentage = (current / min) * 100;
@@ -106,100 +115,71 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
   };
   
   const handleCloseModals = () => {
-    setIsProductModalOpen(false);
-    setIsDeleteProductModalOpen(false);
-    setCurrentProduct(null);
-    setProductToDelete(null);
-    setIsExpenseModalOpen(false);
-    setIsDeleteExpenseModalOpen(false);
-    setCurrentExpense(null);
-    setExpenseToDelete(null);
+    setIsProductModalOpen(false); setIsDeleteProductModalOpen(false); setCurrentProduct(null); setProductToDelete(null);
+    setIsExpenseModalOpen(false); setIsDeleteExpenseModalOpen(false); setCurrentExpense(null); setExpenseToDelete(null);
   };
 
-  const handleOpenAddProductModal = () => {
-    setCurrentProduct({});
-    setIsProductModalOpen(true);
-  };
+  const handleOpenAddProductModal = () => { setCurrentProduct({}); setIsProductModalOpen(true); };
+  const handleOpenEditProductModal = (product: Product) => { setCurrentProduct(product); setIsProductModalOpen(true); };
+  const handleOpenDeleteProductModal = (product: Product) => { setProductToDelete(product); setIsDeleteProductModalOpen(true); };
+  const handleProductFormChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (currentProduct) { const { name, value, type } = e.target; setCurrentProduct({ ...currentProduct, [name]: type === 'number' ? parseInt(value, 10) || 0 : value }); } };
   
-  const handleOpenEditProductModal = (product: Product) => {
-    setCurrentProduct(product);
-    setIsProductModalOpen(true);
-  };
-  
-  const handleOpenDeleteProductModal = (product: Product) => {
-    setProductToDelete(product);
-    setIsDeleteProductModalOpen(true);
-  };
+  const handleOpenAddExpenseModal = () => { setCurrentExpense({ date: new Date().toISOString().split('T')[0] }); setIsExpenseModalOpen(true); };
+  const handleOpenDeleteExpenseModal = (expense: Expense) => { setExpenseToDelete(expense); setIsDeleteExpenseModalOpen(true); };
+  const handleExpenseFormChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (currentExpense) { const { name, value, type } = e.target; setCurrentExpense({ ...currentExpense, [name]: type === 'number' ? parseFloat(value) || 0 : value }); } };
 
-  const handleProductFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (currentProduct) {
-      const { name, value, type } = e.target;
-      setCurrentProduct({ ...currentProduct, [name]: type === 'number' ? parseInt(value, 10) || 0 : value });
-    }
-  };
-
-  const handleSaveProduct = (e: React.FormEvent) => {
+  // --- FUNCIONES DE GUARDADO Y BORRADO (MODIFICADAS) ---
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentProduct || !currentProduct.name) return;
-    if (currentProduct.id) {
-        setProducts(products.map(p => p.id === currentProduct.id ? { ...p, ...currentProduct } as Product : p));
-    } else {
-        const newProduct: Product = { id: Date.now(), name: currentProduct.name, currentStock: currentProduct.currentStock || 0, minStock: currentProduct.minStock || 0 };
-        setProducts([newProduct, ...products]);
+    if (!currentProduct || !currentProduct.name || currentProduct.currentStock === undefined || currentProduct.minStock === undefined) {
+      alert("Por favor, rellena todos los campos del producto.");
+      return;
+    }
+    // Por ahora, solo manejamos la creación. La edición requeriría un endpoint PUT/PATCH.
+    if (!currentProduct.id) {
+        await onCreateProduct({
+            name: currentProduct.name,
+            currentStock: currentProduct.currentStock,
+            minStock: currentProduct.minStock,
+        });
     }
     handleCloseModals();
   };
   
-  const handleDeleteProductConfirm = () => {
-    if (productToDelete) setProducts(products.filter(p => p.id !== productToDelete.id));
+  const handleDeleteProductConfirm = async () => {
+    if (productToDelete) {
+        await onDeleteProduct(productToDelete.id);
+    }
     handleCloseModals();
   };
   
-  // --- Funciones para GASTOS (actualizadas) ---
-  const handleOpenAddExpenseModal = () => {
-      setCurrentExpense({ date: new Date().toISOString().split('T')[0] });
-      setIsExpenseModalOpen(true);
-  };
-
-  const handleOpenDeleteExpenseModal = (expense: Expense) => {
-      setExpenseToDelete(expense);
-      setIsDeleteExpenseModalOpen(true);
-  };
-
-  const handleExpenseFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (currentExpense) {
-          const { name, value, type } = e.target;
-          setCurrentExpense({ ...currentExpense, [name]: type === 'number' ? parseFloat(value) || 0 : value });
-      }
-  };
-
-  const handleSaveExpense = (e: React.FormEvent) => {
+  const handleSaveExpense = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!currentExpense || !currentExpense.description || !currentExpense.amount || !currentExpense.date) {
-        console.error('Por favor, rellena todos los campos.');
+        alert("Por favor, rellena todos los campos del gasto.");
         return;
       }
       
-      // Ajusta la fecha para evitar problemas de zona horaria al guardar
       const date = new Date(currentExpense.date);
       const userTimezoneOffset = date.getTimezoneOffset() * 60000;
       const dateInUTC = new Date(date.getTime() + userTimezoneOffset);
 
-      const newExpense: Expense = {
-          id: Date.now(),
+      await onCreateExpense({
           description: currentExpense.description,
           amount: currentExpense.amount,
           date: dateInUTC.toISOString(),
-      };
-      setExpenses([newExpense, ...expenses]);
+      });
       handleCloseModals();
   };
 
-  const handleDeleteExpenseConfirm = () => {
-      if (expenseToDelete) setExpenses(expenses.filter(e => e.id !== expenseToDelete.id));
+  const handleDeleteExpenseConfirm = async () => {
+      if (expenseToDelete) {
+        await onDeleteExpense(expenseToDelete.id);
+      }
       handleCloseModals();
   };
-
+  
+  // --- Lógica de cálculos y filtros (sin cambios) ---
   const formatMonthForDisplay = (monthString: string) => {
     const [year, month] = monthString.split('-');
     const date = new Date(Number(year), Number(month) - 1);
@@ -207,7 +187,6 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
   };
   
   const expenseTotals = useMemo(() => {
-    // --- Cálculos de fecha basados en UTC para mayor precisión ---
     const now = new Date();
     const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const startOfWeekUTC = new Date(todayUTC);
@@ -216,41 +195,28 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
     startOfFortnightUTC.setUTCDate(todayUTC.getUTCDate() - 15);
     const startOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-    const filterAndSum = (startDate: Date) => expenses
-      .filter(e => new Date(e.date) >= startDate)
-      .reduce((sum, e) => sum + e.amount, 0);
+    const filterAndSum = (startDate: Date) => expenses.filter(e => new Date(e.date) >= startDate).reduce((sum, e) => sum + e.amount, 0);
 
-    // --- Lógica para la tarjeta de gasto mensual dinámica ---
     let monthlyDisplayTotal;
     let monthlyDisplayTitle = "Gasto Mensual";
 
     if (filterMonth === 'all') {
       monthlyDisplayTotal = filterAndSum(startOfMonthUTC);
     } else {
-      monthlyDisplayTotal = expenses
-        .filter(e => e.date.startsWith(filterMonth))
-        .reduce((sum, e) => sum + e.amount, 0);
+      monthlyDisplayTotal = expenses.filter(e => e.date.startsWith(filterMonth)).reduce((sum, e) => sum + e.amount, 0);
       monthlyDisplayTitle = `Gasto de ${formatMonthForDisplay(filterMonth)}`;
     }
 
-    return {
-        day: filterAndSum(todayUTC),
-        week: filterAndSum(startOfWeekUTC),
-        fortnight: filterAndSum(startOfFortnightUTC),
-        month: monthlyDisplayTotal,
-        monthTitle: monthlyDisplayTitle,
-    };
+    return { day: filterAndSum(todayUTC), week: filterAndSum(startOfWeekUTC), fortnight: filterAndSum(startOfFortnightUTC), month: monthlyDisplayTotal, monthTitle: monthlyDisplayTitle };
   }, [expenses, filterMonth]);
     
   const availableMonths = useMemo(() => {
-    const monthSet = new Set(expenses.map(e => e.date.substring(0, 7))); // Extrae 'YYYY-MM'
+    const monthSet = new Set(expenses.map(e => e.date.substring(0, 7)));
     return Array.from(monthSet).sort().reverse();
   }, [expenses]);
 
   const filteredExpenses = useMemo(() => {
-    if (filterMonth === 'all') {
-      return expenses;
-    }
+    if (filterMonth === 'all') return expenses;
     return expenses.filter(e => e.date.startsWith(filterMonth));
   }, [expenses, filterMonth]);
 
@@ -442,3 +408,4 @@ const Inventory: React.FC<InventoryAndExpensesProps> = ({ products, setProducts,
 };
 
 export default Inventory;
+

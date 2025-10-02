@@ -104,14 +104,25 @@ const App: React.FC = () => {
                 setPlans(data.plans || []);
                 setSubscriptions(data.subscriptions || []);
             } else if (currentUser.businessId) {
-                const data = await apiService.getBusinessData();
-                setBusinesses(data.business ? [data.business] : []);
-                setClients(data.clients || []);
-                setServices(data.services || []);
-                setAppointments(data.appointments || []);
-                setPlans(data.plans || []);
-                setSubscriptions(data.subscriptions || []);
-                setPayments(data.payments || []);
+                const [
+                    businessData, 
+                    productsData, 
+                    expensesData
+                ] = await Promise.all([
+                    apiService.getBusinessData(),
+                    apiService.getProducts(),
+                    apiService.getExpenses()
+                ]);
+
+                setBusinesses(businessData.business ? [businessData.business] : []);
+                setClients(businessData.clients || []);
+                setServices(businessData.services || []);
+                setAppointments(businessData.appointments || []);
+                setPlans(businessData.plans || []);
+                setSubscriptions(businessData.subscriptions || []);
+                setPayments(businessData.payments || []);
+                setProducts(productsData || []);
+                setExpenses(expensesData || []);
             }
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -347,6 +358,46 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCreateProduct = async (productData: Omit<Product, 'id'>) => {
+    try {
+        const newProduct = await apiService.createProduct(productData);
+        setProducts(prev => [newProduct, ...prev]);
+        toast.success('Producto guardado.');
+    } catch (error) {
+        toast.error('Error al guardar el producto.');
+    }
+  };
+
+  const handleDeleteProduct = async (productId: number) => {
+    try {
+        await apiService.deleteProduct(productId);
+        setProducts(prev => prev.filter(p => p.id !== productId));
+        toast.success('Producto eliminado.');
+    } catch (error) {
+        toast.error('Error al eliminar el producto.');
+    }
+  };
+
+  const handleCreateExpense = async (expenseData: any) => {
+     try {
+        const newExpense = await apiService.createExpense(expenseData);
+        setExpenses(prev => [newExpense, ...prev]);
+        toast.success('Gasto guardado.');
+    } catch (error) {
+        toast.error('Error al guardar el gasto.');
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: number) => {
+    try {
+        await apiService.deleteExpense(expenseId);
+        setExpenses(prev => prev.filter(e => e.id !== expenseId));
+        toast.success('Gasto eliminado.');
+    } catch (error) {
+        toast.error('Error al eliminar el gasto.');
+    }
+  };
+
   if (isLoading) {
       return <div className="flex items-center justify-center h-screen bg-background"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div></div>;
   }
@@ -392,7 +443,14 @@ const App: React.FC = () => {
       case Page.Clients: 
         return <Clients clients={clients} onCreateClient={handleCreateClient} onUpdateClient={handleUpdateClient} onDeleteClient={handleDeleteClient}/>;
       case Page.Inventory: 
-        return <Inventory products={products} setProducts={setProducts}expenses={expenses}setExpenses={setExpenses}/>;
+        return <Inventory 
+                  products={products} 
+                  expenses={expenses}
+                  onCreateProduct={handleCreateProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onCreateExpense={handleCreateExpense}
+                  onDeleteExpense={handleDeleteExpense}
+               />;
       case Page.VirtualAssistant: 
         if (!currentBusiness?.profile) return <div>Cargando perfil...</div>;
         return <Marketing clients={clients} profile={currentBusiness.profile} />;
