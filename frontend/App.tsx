@@ -66,6 +66,7 @@ const App: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [impersonatedBusinessId, setImpersonatedBusinessId] = useState<number | null>(null);
@@ -391,7 +392,7 @@ const App: React.FC = () => {
       case Page.Clients: 
         return <Clients clients={clients} onCreateClient={handleCreateClient} onUpdateClient={handleUpdateClient} onDeleteClient={handleDeleteClient}/>;
       case Page.Inventory: 
-        return <Inventory products={products} setProducts={() => {}} />;
+        return <Inventory products={products} setProducts={setProducts}expenses={expenses}setExpenses={setExpenses}/>;
       case Page.VirtualAssistant: 
         if (!currentBusiness?.profile) return <div>Cargando perfil...</div>;
         return <Marketing clients={clients} profile={currentBusiness.profile} />;
