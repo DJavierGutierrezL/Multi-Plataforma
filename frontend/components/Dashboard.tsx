@@ -8,11 +8,19 @@ import { GiftIcon } from './icons/GiftIcon';
 import { HistoryIcon } from './icons/HistoryIcon';
 import Modal from './Modal';
 
-// --- Definición de Props para el Componente ---
+// --- Definición del tipo Gasto (para este componente) ---
+interface Expense {
+    id: string;
+    amount: number;
+    date: string; // ISO String
+}
+
+// --- Definición de Props para el Componente (Actualizado) ---
 interface DashboardProps {
   appointments: Appointment[];
   clients: Client[];
   services: Service[];
+  expenses: Expense[]; // <-- Prop añadida
   onDeleteAppointment: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, data: Partial<Appointment>) => void;
 }
@@ -56,7 +64,7 @@ const getStatusBadge = (status?: string) => {
 };
 
 // --- Componente Principal del Dashboard ---
-const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, clients, services, onDeleteAppointment, onUpdateAppointment }) => {
+const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, clients, services, expenses, onDeleteAppointment, onUpdateAppointment }) => {
     
     const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
     const [editFormState, setEditFormState] = useState<Appointment | null>(null);
@@ -71,18 +79,35 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
         return { ...app, clientFirstName: client?.firstName, clientLastName: client?.lastName };
     }), [rawAppointments, clients]);
 
-    const { totalFortnightRevenue, completedAppointmentsThisFortnight } = useMemo(() => {
+    // --- CÁLCULOS DE ESTADÍSTICAS (MODIFICADO) ---
+    const { totalFortnightRevenue, completedAppointmentsThisFortnight, totalFortnightExpenses } = useMemo(() => {
         const today = new Date();
         const startOfFortnight = new Date(today.getFullYear(), today.getMonth(), today.getDate() <= 15 ? 1 : 16);
-        const endOfFortnight = new Date(today.getFullYear(), today.getMonth(), today.getDate() <= 15 ? 15 : new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate(), 23, 59, 59, 999);
+        startOfFortnight.setHours(0, 0, 0, 0);
+        const endOfFortnight = new Date(today.getFullYear(), today.getMonth(), today.getDate() <= 15 ? 15 : new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate());
+        endOfFortnight.setHours(23, 59, 59, 999);
+        
+        // Cálculo de Ingresos
         const completed = appointments.filter(app => {
-            if (app.status !== 'Completed' || !app.appointmentDate || !app.appointmentTime) return false;
-            const appDate = new Date(`${app.appointmentDate}T${app.appointmentTime}`);
+            if (app.status !== 'Completed' || !app.appointmentDate) return false;
+            const appDate = new Date(app.appointmentDate);
             return appDate >= startOfFortnight && appDate <= endOfFortnight;
         });
         const totalRevenue = completed.reduce((total, app) => total + (Number(app.cost) || 0), 0);
-        return { totalFortnightRevenue: totalRevenue, completedAppointmentsThisFortnight: completed };
-    }, [appointments]);
+
+        // --- NUEVO: Cálculo de Gastos ---
+        const expensesInFortnight = expenses.filter(exp => {
+            const expDate = new Date(exp.date);
+            return expDate >= startOfFortnight && expDate <= endOfFortnight;
+        });
+        const totalExpenses = expensesInFortnight.reduce((total, exp) => total + (Number(exp.amount) || 0), 0);
+
+        return { 
+            totalFortnightRevenue: totalRevenue, 
+            completedAppointmentsThisFortnight: completed,
+            totalFortnightExpenses: totalExpenses 
+        };
+    }, [appointments, expenses]); // <-- Se añade 'expenses' a las dependencias
 
     const { chartStartDate, chartEndDate, chartLabel } = useMemo(() => {
         const now = new Date();
@@ -103,8 +128,8 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
 
     const revenueData = useMemo(() => {
         const appointmentsInPeriod = appointments.filter(app => {
-            if (app.status !== 'Completed' || !app.appointmentDate || !app.appointmentTime) return false;
-            const appDate = new Date(`${app.appointmentDate}T${app.appointmentTime}`);
+            if (app.status !== 'Completed' || !app.appointmentDate) return false;
+            const appDate = new Date(app.appointmentDate);
             return appDate >= chartStartDate && appDate <= new Date(chartEndDate.getTime() + 86399999);
         });
         const dataMap = new Map<number, number>();
@@ -112,13 +137,12 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
             dataMap.set(d.getDate(), 0);
         }
         appointmentsInPeriod.forEach(app => {
-            const day = new Date(`${app.appointmentDate}T${app.appointmentTime}`).getDate();
+            const day = new Date(app.appointmentDate).getDate();
             dataMap.set(day, (dataMap.get(day) || 0) + Number(app.cost));
         });
         return Array.from(dataMap.entries()).map(([day, revenue]) => ({ name: String(day), Ingresos: revenue }));
     }, [appointments, chartStartDate, chartEndDate]);
 
-    // --- NUEVO: Cálculo del total de ingresos para la gráfica ---
     const totalRevenueForChart = useMemo(() => {
         return revenueData.reduce((sum, day) => sum + day.Ingresos, 0);
     }, [revenueData]);
@@ -180,14 +204,16 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
     return (
         <>
             <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* --- SECCIÓN DE TARJETAS (MODIFICADA) --- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard title="Ingresos (Quincena)" value={new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalFortnightRevenue)} icon={<DollarSignIcon className="w-6 h-6" />} color="bg-green-100 text-green-800" />
+                    {/* --- NUEVA TARJETA DE GASTOS --- */}
+                    <StatCard title="Gastos (Quincena)" value={new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalFortnightExpenses)} icon={<DollarSignIcon className="w-6 h-6" />} color="bg-red-100 text-red-800" />
                     <StatCard title="Citas Completadas (Quincena)" value={completedAppointmentsThisFortnight.length} icon={<CalendarIcon className="w-6 h-6" />} color="bg-blue-100 text-blue-800" />
                     <StatCard title="Total Clientes" value={clients.length} icon={<UsersIcon className="w-6 h-6" />} color="bg-purple-100 text-purple-800" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                    {/* --- [MODIFICADO] Gráfica de Ingresos con Total --- */}
                     <div className="lg:col-span-3 bg-card p-6 rounded-2xl shadow-md border">
                         <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
                             <div>
