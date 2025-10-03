@@ -1,4 +1,4 @@
-import { RegistrationData, User, Business, Profile, Prices, ThemeSettings, SubscriptionStatus, Appointment, Client, Product, Plan, Subscription, Payment } from '../types';
+import { RegistrationData, User, Business, Profile, Prices, ThemeSettings, SubscriptionStatus, Appointment, Client, Product, Plan, Subscription, Payment, Service } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -17,7 +17,6 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(`${API_BASE_URL}${url}`, { ...options, headers });
 
     if (!response.ok) {
-        // El error de sintaxis suele estar en la siguiente línea por un paréntesis o llave mal puesto.
         const errorData = await response.json().catch(() => ({ message: `Error: ${response.statusText}` }));
         throw new Error(errorData.message || 'API request failed');
     }
@@ -31,7 +30,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 
 // --- AUTH ---
 export const login = async (username: string, password: string): Promise<{ user: User, token: string, business: Business | null }> => {
-    // Esta función NO debe usar fetchWithAuth
+    // Esta función NO usa fetchWithAuth
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -45,14 +44,18 @@ export const login = async (username: string, password: string): Promise<{ user:
     return response.json();
 };
 
-// El resto de las funciones SÍ usan fetchWithAuth
 export const verifyToken = async (): Promise<{ user: User }> => {
     return fetchWithAuth('/auth/me');
 };
 
+
 // --- DATA FETCHING ---
 export const getSuperAdminDashboardData = async (): Promise<{ businesses: Business[], users: User[], plans: Plan[], subscriptions: Subscription[], payments: Payment[] }> => {
     return fetchWithAuth('/admin/dashboard');
+};
+
+export const getBusinessData = async (): Promise<{ business: Business, clients: Client[], services: Service[], appointments: Appointment[], plans: Plan[], subscriptions: Subscription[], payments: Payment[] }> => {
+    return fetchWithAuth(`/businesses/my-data`);
 };
 
 
@@ -68,19 +71,6 @@ export const updateProfile = async (profile: Profile): Promise<Profile> => {
 
 export const updatePrices = async (businessId: number, prices: Prices): Promise<Prices> => {
     return fetchWithAuth(`/businesses/${businessId}/prices`, { method: 'PUT', body: JSON.stringify(prices) });
-};
-
-// Business Data Sync (simple approach for now)
-export const syncAppointments = async (businessId: number, appointments: Appointment[]): Promise<Appointment[]> => {
-    return fetchWithAuth(`/businesses/${businessId}/appointments`, { method: 'PUT', body: JSON.stringify(appointments) });
-};
-
-export const syncClients = async (businessId: number, clients: Client[]): Promise<Client[]> => {
-    return fetchWithAuth(`/businesses/${businessId}/clients`, { method: 'PUT', body: JSON.stringify(clients) });
-};
-
-export const syncProducts = async (businessId: number, products: Product[]): Promise<Product[]> => {
-    return fetchWithAuth(`/businesses/${businessId}/products`, { method: 'PUT', body: JSON.stringify(products) });
 };
 
 // Subscriptions
@@ -137,10 +127,6 @@ export const deleteBusiness = async (businessId: number): Promise<void> => {
   return fetchWithAuth(`/businesses/${businessId}`, {
     method: 'DELETE',
   });
-};
-
-export const getBusinessData = async (): Promise<{ business: Business, plans: Plan[], subscriptions: Subscription[], payments: Payment[] }> => {
-    return fetchWithAuth(`/businesses/my-data`);
 };
 
 export const getClients = async (): Promise<Client[]> => {
@@ -229,37 +215,38 @@ export const generateAiMessage = async (clientId: number, messageType: string, b
     });
 };
 
-export const getProducts = async () => {
-    return await request('/inventory/products');
+
+// --- INVENTARIO Y GASTOS (FUNCIONES CORREGIDAS) ---
+export const getProducts = async (): Promise<Product[]> => {
+    return fetchWithAuth('/inventory/products');
 };
 
-export const createProduct = async (productData) => {
-    return await request('/inventory/products', {
+export const createProduct = async (productData: Omit<Product, 'id' | 'businessId'>): Promise<Product> => {
+    return fetchWithAuth('/inventory/products', {
         method: 'POST',
         body: JSON.stringify(productData),
     });
 };
 
-export const deleteProduct = async (productId) => {
-    return await request(`/inventory/products/${productId}`, {
+export const deleteProduct = async (productId: number): Promise<void> => {
+    return fetchWithAuth(`/inventory/products/${productId}`, {
         method: 'DELETE',
     });
 };
 
-// --- Funciones para Gastos ---
-export const getExpenses = async () => {
-    return await request('/inventory/expenses');
+export const getExpenses = async (): Promise<any[]> => { // Idealmente, crea un tipo 'Expense' en types.ts
+    return fetchWithAuth('/inventory/expenses');
 };
 
-export const createExpense = async (expenseData) => {
-    return await request('/inventory/expenses', {
+export const createExpense = async (expenseData: { description: string, amount: number, date: string }): Promise<any> => {
+    return fetchWithAuth('/inventory/expenses', {
         method: 'POST',
         body: JSON.stringify(expenseData),
     });
 };
 
-export const deleteExpense = async (expenseId) => {
-    return await request(`/inventory/expenses/${expenseId}`, {
+export const deleteExpense = async (expenseId: number): Promise<void> => {
+    return fetchWithAuth(`/inventory/expenses/${expenseId}`, {
         method: 'DELETE',
     });
 };
