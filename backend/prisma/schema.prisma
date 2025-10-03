@@ -161,22 +161,3 @@ model Payment {
 
   @@map("payments")
 }
-```
-
-#### 2. Sube los Cambios a GitHub
-
-Una vez que hayas reemplazado el contenido del archivo, abre tu terminal y sube el cambio.
-
-```bash
-# Navega a la carpeta raíz de tu proyecto
-cd C:\Users\Javier Gutiérrez\Videos\multi-plataforma
-
-# Añade el archivo schema.prisma corregido
-git add backend/prisma/schema.prisma
-
-# Guarda el cambio
-git commit -m "fix: Replace SQL with correct Prisma schema language"
-
-# Sube a GitHub
-git push
-
