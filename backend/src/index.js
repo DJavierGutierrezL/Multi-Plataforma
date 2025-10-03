@@ -5,7 +5,16 @@ const path = require('path');
 
 const app = express();
 
-app.use(cors());
+// --- CONFIGURACIÓN DE CORS (LA SOLUCIÓN) ---
+// Se define explícitamente que la URL de tu frontend tiene permiso.
+const corsOptions = {
+  origin: 'https://multi-plataforma.onrender.com',
+  optionsSuccessStatus: 200 // Para compatibilidad con navegadores antiguos
+};
+
+// Se aplica la configuración de CORS a la aplicación
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // --- 1. Rutas de la API (Primero) ---
@@ -45,3 +54,4 @@ const HOST = '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`Servidor API escuchando en el puerto ${PORT}`);
 });
+
