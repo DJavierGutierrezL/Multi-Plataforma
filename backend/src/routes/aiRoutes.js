@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const prisma = require('../prisma'); // <- Usamos la conexión centralizada de Prisma
 const { verifyToken } = require('../middleware/authMiddleware');
 
 router.post('/generate-message', verifyToken, async (req, res) => {
@@ -12,11 +12,18 @@ router.post('/generate-message', verifyToken, async (req, res) => {
     }
 
     try {
-        const clientRes = await db.query('SELECT first_name FROM clients WHERE id = $1 AND business_id = $2', [clientId, businessId]);
-        if (clientRes.rows.length === 0) {
+        // 1. Buscamos al cliente usando Prisma
+        const client = await prisma.client.findFirst({
+            where: {
+                id: parseInt(clientId),
+                businessId: businessId
+            }
+        });
+
+        if (!client) {
             return res.status(404).json({ message: "Cliente no encontrado en este negocio." });
         }
-        const clientName = clientRes.rows[0].first_name;
+        const clientName = client.firstName;
 
         let message = '';
 
@@ -31,26 +38,37 @@ router.post('/generate-message', verifyToken, async (req, res) => {
                 message = `¡Feliz cumpleaños, ${clientName}! 🎂 De parte de todo el equipo de ${businessName}, te deseamos un día increíble. ¡Ven a celebrar con nosotros y recibe un regalo especial! 🎁`;
                 break;
             case 'Falta Pago':
-                const appointmentRes = await db.query(
-                    `SELECT a.cost, a.appointment_date, array_agg(s.name) as service_names
-                     FROM appointments a
-                     LEFT JOIN appointment_services aps ON a.id = aps.appointment_id
-                     LEFT JOIN services s ON aps.service_id = s.id
-                     WHERE a.client_id = $1 AND a.status = 'Falta Pago' AND a.business_id = $2
-                     GROUP BY a.id
-                     ORDER BY a.appointment_date DESC, a.appointment_time DESC
-                     LIMIT 1`,
-                    [clientId, businessId]
-                );
+                // 2. Buscamos la cita pendiente de pago con Prisma
+                const appointment = await prisma.appointment.findFirst({
+                    where: {
+                        clientId: parseInt(clientId),
+                        businessId: businessId,
+                        status: 'Falta Pago',
+                    },
+                    include: { // Incluimos los datos relacionados que necesitamos
+                        appointmentServices: {
+                            include: {
+                                service: {
+                                    select: { name: true }
+                                }
+                            }
+                        },
+                        business: { // Obtenemos el número de cuenta del negocio
+                            select: { accountNumber: true }
+                        }
+                    },
+                    orderBy: {
+                        appointmentDate: 'desc'
+                    }
+                });
 
-                if (appointmentRes.rows.length > 0) {
-                    const { cost, appointment_date, service_names } = appointmentRes.rows[0];
-                    const businessRes = await db.query('SELECT account_number FROM businesses WHERE id = $1', [businessId]);
-                    const accountNumber = businessRes.rows[0]?.account_number;
+                if (appointment) {
+                    const { cost, appointmentDate, appointmentServices, business } = appointment;
+                    const accountNumber = business.accountNumber;
 
-                    const formattedDate = new Date(appointment_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+                    const formattedDate = new Date(appointmentDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
                     const formattedCost = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(cost);
-                    const servicesList = service_names.join(', ') || 'los servicios prestados';
+                    const servicesList = appointmentServices.map(s => s.service.name).join(', ') || 'los servicios prestados';
 
                     message = `¡Hola, ${clientName}! 👋 Soy Kandy AI, el asistente virtual de ${businessName}.\n\nQueríamos recordarte el pago pendiente de ${formattedCost} por tus servicios de ${servicesList} del ${formattedDate}.\n\nPuedes realizar el pago por transferencia a:\n${accountNumber || 'Nro. de cuenta no configurado en Ajustes'}\n\n¡Gracias por tu atención!\nUn cordial saludo,\n${businessName}`;
                 } else {

@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const prisma = require('../prisma'); // <- Usamos la conexión centralizada de Prisma
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const { verifyToken } = require('../middleware/authMiddleware'); // Importamos el middleware
 
+// POST /api/auth/login -> Iniciar sesión de un usuario
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -12,34 +14,35 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const { rows } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (rows.length === 0) {
+    // 1. Buscamos al usuario por su 'username' usando Prisma
+    const user = await prisma.user.findUnique({
+      where: { username: username },
+    });
+
+    // 2. Si no se encuentra el usuario, las credenciales son inválidas
+    if (!user) {
       return res.status(401).json({ message: 'Credenciales inválidas.' });
     }
 
-    const user = rows[0];
+    // 3. Comparamos la contraseña enviada con el hash guardado en la base de datos
+    const passwordIsValid = await bcrypt.compare(password, user.passwordHash);
 
-    // Usamos la comparación de texto plano de la solución de emergencia
-    const passwordIsValid = await bcrypt.compare(password, user.password_hash);
+    if (!passwordIsValid) {
+      return res.status(401).json({ message: 'Credenciales inválidas.' });
+    }
 
-        if (!passwordIsValid) {
-          return res.status(401).json({ message: 'Credenciales inválidas.' });
-        }
-
-    const payload = { id: user.id, role: user.role, businessId: user.business_id };
+    // 4. Creamos el payload para el token con los datos del usuario
+    const payload = { 
+        id: user.id, 
+        role: user.role, 
+        businessId: user.businessId 
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '365d' });
     
-    // --- INICIO DE LA CORRECCIÓN ---
-    // Nos aseguramos de incluir 'businessId' en la respuesta.
-    const formattedUser = { 
-      id: user.id, 
-      username: user.username, 
-      role: user.role,
-      businessId: user.business_id // <-- ESTA LÍNEA FALTABA
-    };
-    // --- FIN DE LA CORRECCIÓN ---
+    // 5. Quitamos el hash de la contraseña antes de enviar el objeto de usuario al frontend
+    const { passwordHash, ...userWithoutPassword } = user;
 
-    res.json({ user: formattedUser, token, business: null });
+    res.json({ user: userWithoutPassword, token, business: null });
 
   } catch (error) {
     console.error("Error en el inicio de sesión:", error);
@@ -47,7 +50,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', require('../middleware/authMiddleware').verifyToken, (req, res) => {
+// GET /api/auth/me -> Verifica el token y devuelve los datos del usuario
+router.get('/me', verifyToken, (req, res) => {
+  // El middleware 'verifyToken' ya ha hecho el trabajo y ha adjuntado el usuario a 'req.user'
   res.json({ user: req.user });
 });
 

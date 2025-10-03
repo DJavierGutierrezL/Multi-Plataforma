@@ -1,32 +1,36 @@
-// src/routes/planRoutes.js
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const prisma = require('../prisma'); // <- Usamos la conexión centralizada de Prisma
 const { verifyToken } = require('../middleware/authMiddleware');
 
 // POST /api/plans -> Crea un nuevo plan de suscripción
 router.post('/', verifyToken, async (req, res) => {
-    // TODO: Proteger esta ruta para que solo el SuperAdmin pueda usarla.
+    // 1. Se añade la verificación de rol para proteger la ruta
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado. Solo los administradores pueden crear planes.' });
+    }
+
     const { name, price, features } = req.body;
 
-    if (!name || price === undefined || !features) {
-        return res.status(400).json({ message: 'Nombre, precio y características son obligatorios.' });
+    if (!name || price === undefined || !Array.isArray(features)) {
+        return res.status(400).json({ message: 'Nombre, precio y un arreglo de características son obligatorios.' });
     }
 
     try {
-        // El precio se guarda en la unidad mínima (ej. centavos), pero lo recibimos como unidad principal.
-        const query = `
-            INSERT INTO plans (name, price, features)
-            VALUES ($1, $2, $3)
-            RETURNING *;
-        `;
+        // 2. Se reemplaza la consulta SQL con el método 'create' de Prisma
+        const newPlan = await prisma.plan.create({
+            data: {
+                name: name,
+                price: parseFloat(price),
+                features: features,
+            },
+        });
 
-        const { rows } = await db.query(query, [name, price, features]);
-
-        res.status(201).json(rows[0]);
+        res.status(201).json(newPlan);
 
     } catch (error) {
-        if (error.code === '23505') { // Error de unicidad de PostgreSQL
+        // 3. Prisma maneja errores de unicidad con el código 'P2002'
+        if (error.code === 'P2002' && error.meta?.target?.includes('name')) {
             return res.status(409).json({ message: 'Ya existe un plan con ese nombre.' });
         }
         console.error("Error al crear el plan:", error);

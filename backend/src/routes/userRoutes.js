@@ -1,49 +1,54 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const prisma = require('../prisma'); // <- Usamos la conexión centralizada de Prisma
 const { verifyToken } = require('../middleware/authMiddleware');
 const bcrypt = require('bcrypt');
 
+// POST /api/users -> Crear un nuevo usuario
 router.post('/', verifyToken, async (req, res) => {
-  const { firstName, lastName, phone, username, password, businessId } = req.body;
-
-  if (!username || !password || !firstName || !lastName) {
-    return res.status(400).json({ message: 'Nombre, apellido, usuario y contraseña son obligatorios.' });
-  }
-
-  try {
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-    const query = `
-      INSERT INTO users (first_name, last_name, phone, username, password_hash, business_id, role)
-      VALUES ($1, $2, $3, $4, $5, $6, 'User')
-      RETURNING id, first_name, last_name, phone, username, business_id, role;
-    `;
-    
-    // --- INICIO DE LA ÚLTIMA MODIFICACIÓN ---
-    // Convertimos businessId a String para intentar evitar el error del driver.
-    const queryParams = [
-      firstName, 
-      lastName, 
-      phone, 
-      username, 
-      passwordHash, 
-      businessId ? String(businessId) : null
-    ];
-    // --- FIN DE LA ÚLTIMA MODIFICACIÓN ---
-
-    const { rows } = await db.query(query, queryParams);
-    res.status(201).json(rows[0]);
-
-  } catch (error) {
-    if (error.code === '23505') { 
-      return res.status(409).json({ message: 'El nombre de usuario ya existe.' });
+    // Solo un SuperAdmin puede crear usuarios nuevos directamente
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado.' });
     }
-    console.error("Error al crear el usuario:", error);
-    res.status(500).json({ message: 'Error interno del servidor.' });
-  }
+  
+    const { firstName, lastName, phone, username, password, businessId } = req.body;
+
+    if (!username || !password || !firstName || !lastName) {
+        return res.status(400).json({ message: 'Nombre, apellido, usuario y contraseña son obligatorios.' });
+    }
+
+    try {
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+        
+        // Se usa el método 'create' de Prisma
+        const newUser = await prisma.user.create({
+            data: {
+                firstName,
+                lastName,
+                phone,
+                username,
+                passwordHash, // Prisma usa camelCase
+                businessId: businessId ? parseInt(businessId) : null, // Prisma maneja los tipos correctamente
+                role: 'User'
+            }
+        });
+
+        // Excluimos el hash de la contraseña de la respuesta por seguridad
+        const { passwordHash: removedPassword, ...userToReturn } = newUser;
+        res.status(201).json(userToReturn);
+
+    } catch (error) {
+        // Se actualiza el código de error para duplicados de Prisma
+        if (error.code === 'P2002' && error.meta?.target?.includes('username')) { 
+            return res.status(409).json({ message: 'El nombre de usuario ya existe.' });
+        }
+        console.error("Error al crear el usuario:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
 });
 
+// DELETE /api/users/:id -> Eliminar un usuario
 router.delete('/:id', verifyToken, async (req, res) => {
     // Solo un SuperAdmin puede eliminar usuarios
     if (req.user.role !== 'SuperAdmin') {
@@ -53,15 +58,18 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
 
     try {
-        const result = await db.query('DELETE FROM users WHERE id = $1', [id]);
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ message: 'Usuario no encontrado.' });
-        }
+        // Se usa el método 'delete' de Prisma
+        await prisma.user.delete({
+            where: { id: parseInt(id) }
+        });
 
         res.status(204).send(); // Éxito sin contenido
 
     } catch (error) {
+        // Se actualiza el código de error para "registro no encontrado" de Prisma
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
         console.error("Error al eliminar el usuario:", error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }

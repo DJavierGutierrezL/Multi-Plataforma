@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const prisma = require('../prisma'); // <- Usamos la conexión centralizada de Prisma
 const { verifyToken } = require('../middleware/authMiddleware');
 
+// POST /api/businesses -> Crear un nuevo negocio (solo SuperAdmin)
 router.post('/', verifyToken, async (req, res) => {
     if (req.user.role !== 'SuperAdmin') {
         return res.status(403).json({ message: 'Acceso denegado.' });
@@ -12,16 +13,20 @@ router.post('/', verifyToken, async (req, res) => {
         return res.status(400).json({ message: 'Nombre y tipo son obligatorios.' });
     }
     try {
-        const query = `INSERT INTO businesses (salon_name, type) VALUES ($1, $2) RETURNING *;`;
-        const { rows } = await db.query(query, [salonName, type]);
-        const newBusiness = rows[0];
+        const newBusiness = await prisma.business.create({
+            data: {
+                salonName: salonName,
+                type: type,
+                // Valores por defecto definidos en el schema
+            }
+        });
         const formattedBusiness = {
             id: newBusiness.id,
             type: newBusiness.type,
-            profile: { salonName: newBusiness.salon_name },
+            profile: { salonName: newBusiness.salonName },
             themeSettings: {
-                primaryColor: 'Rosa',
-                backgroundColor: 'Blanco'
+                primaryColor: 'Rosa', // Valor inicial por defecto
+                backgroundColor: 'Blanco' // Valor inicial por defecto
             }
         };
         res.status(201).json(formattedBusiness);
@@ -31,91 +36,109 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
+// GET /api/businesses/my-data -> Obtener todos los datos del negocio del usuario logueado
 router.get('/my-data', verifyToken, async (req, res) => {
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     if (!businessId) {
         return res.status(403).json({ message: "Usuario no asignado a un negocio." });
     }
     try {
-        const appointmentsQuery = `
-            SELECT a.*, c.first_name, c.last_name,
-                   COALESCE(array_agg(aps.service_id) FILTER (WHERE aps.service_id IS NOT NULL), '{}') AS service_ids
-            FROM appointments a
-            JOIN clients c ON a.client_id = c.id
-            LEFT JOIN appointment_services aps ON a.id = aps.appointment_id
-            WHERE a.business_id = $1
-            GROUP BY a.id, c.id 
-            ORDER BY a.appointment_date DESC, a.appointment_time ASC;
-        `;
-        
-        const [businessRes, plansRes, subscriptionsRes, clientsRes, servicesRes, appointmentsRes] = await Promise.all([
-            db.query('SELECT * FROM businesses WHERE id = $1', [businessId]),
-            db.query('SELECT * FROM plans'),
-            db.query('SELECT * FROM subscriptions WHERE business_id = $1', [businessId]),
-            db.query('SELECT * FROM clients WHERE business_id = $1 ORDER BY first_name ASC', [businessId]),
-            db.query('SELECT * FROM services WHERE business_id = $1 ORDER BY name ASC', [businessId]),
-            db.query(appointmentsQuery, [businessId])
-        ]);
+        // Con Prisma, podemos traer todos los datos relacionados en una sola consulta eficiente
+        const businessData = await prisma.business.findUnique({
+            where: { id: businessId },
+            include: {
+                subscriptions: true,
+                clients: { orderBy: { firstName: 'asc' } },
+                services: { orderBy: { name: 'asc' } },
+                appointments: {
+                    include: {
+                        client: { select: { firstName: true, lastName: true } },
+                        appointmentServices: { select: { serviceId: true } }
+                    },
+                    orderBy: [{ appointmentDate: 'desc' }, { appointmentTime: 'asc' }]
+                }
+            }
+        });
 
-        if (businessRes.rows.length === 0) {
+        if (!businessData) {
             return res.status(404).json({ message: "El negocio asignado no fue encontrado." });
         }
-
-        const business = businessRes.rows[0];
         
+        // El frontend espera los planes globales, no solo los del negocio
+        const allPlans = await prisma.plan.findMany();
+        
+        // Formateamos los datos para que coincidan con la estructura esperada por el frontend
         const formattedBusiness = {
-            id: business.id, type: business.type,
-            profile: { salonName: business.salon_name, accountNumber: business.account_number },
+            id: businessData.id,
+            type: businessData.type,
+            profile: { salonName: businessData.salonName, accountNumber: businessData.accountNumber },
             themeSettings: {
-                primaryColor: business.theme_primary_color === 'Pink' ? 'Rosa' : business.theme_primary_color || 'Rosa',
-                backgroundColor: business.theme_background_color || 'Blanco'
+                primaryColor: businessData.themePrimaryColor === 'Pink' ? 'Rosa' : businessData.themePrimaryColor,
+                backgroundColor: businessData.themeBackgroundColor
             }
         };
 
-        const formattedSubscriptions = subscriptionsRes.rows.map(s => ({ id: s.id, businessId: s.business_id, planId: s.plan_id, status: s.status, startDate: s.start_date, endDate: s.end_date }));
-        const formattedClients = clientsRes.rows.map(c => ({ id: c.id, firstName: c.first_name, lastName: c.last_name, phone: c.phone, email: c.email, notes: c.notes, businessId: c.business_id, createdAt: c.created_at, birthDate: c.birth_date }));
-        const formattedServices = servicesRes.rows.map(s => ({ id: s.id, name: s.name, price: parseFloat(s.price), durationMinutes: s.duration_minutes, description: s.description, businessId: s.business_id }));
-        
-        const formattedAppointments = appointmentsRes.rows.map(a => ({
-            id: a.id, clientId: a.client_id, businessId: a.business_id,
-            clientFirstName: a.first_name, clientLastName: a.last_name,
-            appointmentDate: a.appointment_date ? new Date(a.appointment_date).toISOString().split('T')[0] : null,
-            appointmentTime: a.appointment_time, cost: a.cost ? parseFloat(a.cost) : 0,
-            status: a.status, notes: a.notes, serviceIds: a.service_ids,
+        const formattedAppointments = businessData.appointments.map(a => ({
+            id: a.id,
+            clientId: a.clientId,
+            clientFirstName: a.client.firstName,
+            clientLastName: a.client.lastName,
+            appointmentDate: a.appointmentDate.toISOString().split('T')[0],
+            appointmentTime: a.appointmentTime,
+            cost: a.cost,
+            status: a.status,
+            notes: a.notes,
+            serviceIds: a.appointmentServices.map(s => s.serviceId)
         }));
 
         res.json({
-            business: formattedBusiness, plans: plansRes.rows, subscriptions: formattedSubscriptions,
-            payments: [], clients: formattedClients, services: formattedServices, appointments: formattedAppointments
+            business: formattedBusiness,
+            plans: allPlans,
+            subscriptions: businessData.subscriptions,
+            clients: businessData.clients,
+            services: businessData.services,
+            appointments: formattedAppointments,
+            payments: [] // Se mantiene vacío por ahora
         });
     } catch (error) {
-        console.error("----------- ERROR CRÍTICO EN /my-data -----------");
-        console.error("Business ID:", businessId);
-        console.error("Detalles del Error:", error);
+        console.error("----------- ERROR CRÍTICO EN /my-data -----------", error);
         res.status(500).json({ message: 'Error interno del servidor al cargar datos del negocio.' });
     }
 });
 
+// PUT /api/businesses/profile -> Actualizar el perfil del negocio
 router.put('/profile', verifyToken, async (req, res) => {
-    const businessId = req.user.businessId;
+    const { businessId } = req.user;
     const { salonName, accountNumber } = req.body;
     try {
-        const query = `UPDATE businesses SET salon_name = $1, account_number = $2 WHERE id = $3 RETURNING salon_name, account_number`;
-        const { rows } = await db.query(query, [salonName, accountNumber, businessId]);
-        if (rows.length === 0) return res.status(404).json({ message: 'Negocio no encontrado.' });
-        res.json({ salonName: rows[0].salon_name, accountNumber: rows[0].account_number });
+        const updatedBusiness = await prisma.business.update({
+            where: { id: businessId },
+            data: {
+                salonName: salonName,
+                accountNumber: accountNumber
+            },
+            select: {
+                salonName: true,
+                accountNumber: true
+            }
+        });
+        res.json(updatedBusiness);
     } catch (error) {
         console.error("Error al actualizar perfil:", error);
         res.status(500).json({ message: 'Error interno.' });
     }
 });
 
+// DELETE /api/businesses/:id -> Eliminar un negocio (solo SuperAdmin)
 router.delete('/:id', verifyToken, async (req, res) => {
-    if (req.user.role !== 'SuperAdmin') return res.status(403).json({ message: 'Acceso denegado.' });
+    if (req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'Acceso denegado.' });
+    }
     const { id } = req.params;
     try {
-        const result = await db.query('DELETE FROM businesses WHERE id = $1', [id]);
-        if (result.rowCount === 0) return res.status(404).json({ message: 'Negocio no encontrado.' });
+        await prisma.business.delete({
+            where: { id: parseInt(id) }
+        });
         res.status(204).send();
     } catch (error) {
         console.error("Error al eliminar el negocio:", error);
@@ -123,35 +146,35 @@ router.delete('/:id', verifyToken, async (req, res) => {
     }
 });
 
+// PUT /api/businesses/theme -> Actualizar el tema de un negocio
 router.put('/theme', verifyToken, async (req, res) => {
-    const businessId = req.user.role === 'SuperAdmin' ? req.body.businessIdForAdmin : req.user.businessId;
     const { primaryColor, backgroundColor } = req.body;
+    // SuperAdmin puede editar otros negocios, los usuarios solo el suyo
+    const businessIdToUpdate = req.user.role === 'SuperAdmin' ? req.body.businessIdForAdmin : req.user.businessId;
 
+    if (!primaryColor || !backgroundColor || !businessIdToUpdate) {
+        return res.status(400).json({ message: "Se requieren colores y ID de negocio." });
+    }
+    
+    // Convertimos 'Rosa' a 'Pink' para la base de datos
     const primaryColorForDb = primaryColor === 'Rosa' ? 'Pink' : primaryColor;
 
-    if (!primaryColor || !backgroundColor) {
-        return res.status(400).json({ message: "Se requieren ambos colores." });
-    }
-    if (!businessId) {
-        return res.status(403).json({ message: "ID de negocio no proporcionado." });
-    }
-
     try {
-        const query = `
-            UPDATE businesses
-            SET theme_primary_color = $1, theme_background_color = $2
-            WHERE id = $3
-            RETURNING theme_primary_color, theme_background_color;
-        `;
-        const { rows } = await db.query(query, [primaryColorForDb, backgroundColor, businessId]);
-        
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "Negocio no encontrado." });
-        }
+        const updatedBusiness = await prisma.business.update({
+            where: { id: businessIdToUpdate },
+            data: {
+                themePrimaryColor: primaryColorForDb,
+                themeBackgroundColor: backgroundColor,
+            },
+            select: {
+                themePrimaryColor: true,
+                themeBackgroundColor: true,
+            }
+        });
 
         const updatedTheme = {
-            primaryColor: rows[0].theme_primary_color === 'Pink' ? 'Rosa' : rows[0].theme_primary_color,
-            backgroundColor: rows[0].theme_background_color
+            primaryColor: updatedBusiness.themePrimaryColor === 'Pink' ? 'Rosa' : updatedBusiness.themePrimaryColor,
+            backgroundColor: updatedBusiness.themeBackgroundColor
         };
         res.json(updatedTheme);
 
