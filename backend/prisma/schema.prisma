@@ -1,111 +1,182 @@
--- KandyApp Database Schema - Versión 2.0 (Actualizada)
--- Este script refleja la estructura real utilizada por la aplicación.
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
--- Elimina las tablas en el orden correcto de dependencias si ya existen
-DROP TABLE IF EXISTS payments, appointment_services, subscriptions, appointments, products, services, clients, users, plans, businesses CASCADE;
+generator client {
+  provider = "prisma-client-js"
+}
 
--- Tabla para los Negocios (el núcleo de la aplicación)
-CREATE TABLE businesses (
-    id SERIAL PRIMARY KEY,
-    type VARCHAR(50) NOT NULL,
-    salon_name VARCHAR(255) NOT NULL,
-    owner_name VARCHAR(255),
-    account_number TEXT,
-    theme_primary_color VARCHAR(50) DEFAULT 'Pink',
-    theme_background_color VARCHAR(50) DEFAULT 'White',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
--- Tabla para los Planes de Suscripción
-CREATE TABLE plans (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) UNIQUE NOT NULL,
-    price NUMERIC(10, 2) NOT NULL, -- Usamos NUMERIC para precios con decimales
-    features TEXT[]
-);
+model Business {
+  id                   Int             @id @default(autoincrement())
+  type                 String
+  salonName            String          @map("salon_name")
+  ownerName            String?         @map("owner_name")
+  accountNumber        String?         @map("account_number")
+  themePrimaryColor    String          @default("Pink") @map("theme_primary_color")
+  themeBackgroundColor String          @default("White") @map("theme_background_color")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  users                User[]
+  clients              Client[]
+  services             Service[]
+  appointments         Appointment[]
+  products             Product[]
+  expenses             Expense[] // Modelo para Gastos
+  subscriptions        Subscription[]
+  payments             Payment[]
 
--- Tabla para los Usuarios
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    phone VARCHAR(30),
-    role VARCHAR(20) NOT NULL DEFAULT 'User',
-    business_id INTEGER REFERENCES businesses(id) ON DELETE SET NULL, -- Si se borra un negocio, el usuario queda sin negocio
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+  @@map("businesses")
+}
 
--- Tabla para los Clientes de cada Negocio
-CREATE TABLE clients (
-    id SERIAL PRIMARY KEY,
-    business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    first_name VARCHAR(255) NOT NULL,
-    last_name VARCHAR(255),
-    phone VARCHAR(50),
-    email VARCHAR(255),
-    birth_date DATE,
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+model Plan {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  price         Decimal        @db.Decimal(10, 2)
+  features      String[]
+  subscriptions Subscription[]
 
--- Tabla para los Servicios que ofrece cada negocio
-CREATE TABLE services (
-    id SERIAL PRIMARY KEY,
-    business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    price NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    duration_minutes INTEGER,
-    description TEXT
-);
+  @@map("plans")
+}
 
--- Tabla para las Citas
-CREATE TABLE appointments (
-    id SERIAL PRIMARY KEY,
-    business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-    appointment_date DATE NOT NULL,
-    appointment_time TIME,
-    status VARCHAR(50) NOT NULL DEFAULT 'Scheduled',
-    cost NUMERIC(10, 2),
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  phone        String?
+  role         String    @default("User")
+  businessId   Int?      @map("business_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  business     Business? @relation(fields: [businessId], references: [id])
 
--- Tabla de Unión (Junction Table) para Citas y Servicios (Muchos a Muchos)
-CREATE TABLE appointment_services (
-    appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
-    service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
-    PRIMARY KEY (appointment_id, service_id)
-);
+  @@map("users")
+}
 
--- Tabla para el Inventario de Productos
-CREATE TABLE products (
-    id SERIAL PRIMARY KEY,
-    business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    current_stock INTEGER NOT NULL DEFAULT 0,
-    min_stock INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+model Client {
+  id            Int           @id @default(autoincrement())
+  businessId    Int           @map("business_id")
+  firstName     String        @map("first_name")
+  lastName      String?       @map("last_name")
+  phone         String?
+  email         String?
+  birthDate     DateTime?     @map("birth_date") @db.Date
+  notes         String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  business      Business      @relation(fields: [businessId], references: [id])
+  appointments  Appointment[]
 
--- Tabla para las Suscripciones
-CREATE TABLE subscriptions (
-    id SERIAL PRIMARY KEY,
-    business_id INTEGER NOT NULL UNIQUE REFERENCES businesses(id) ON DELETE CASCADE,
-    plan_id INTEGER NOT NULL REFERENCES plans(id),
-    status VARCHAR(50) NOT NULL,
-    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_date TIMESTAMP WITH TIME ZONE NOT NULL
-);
+  @@map("clients")
+}
 
--- Tabla para el Historial de Pagos
-CREATE TABLE payments (
-    id SERIAL PRIMARY KEY,
-    business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-    amount NUMERIC(10, 2) NOT NULL,
-    date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    plan_name VARCHAR(100) NOT NULL,
-    subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL
-);
+model Service {
+  id                 Int                    @id @default(autoincrement())
+  businessId         Int                    @map("business_id")
+  name               String
+  price              Decimal                @default(0) @db.Decimal(10, 2)
+  durationMinutes    Int?                   @map("duration_minutes")
+  description        String?
+  business           Business               @relation(fields: [businessId], references: [id])
+  appointmentServices AppointmentService[]
+
+  @@map("services")
+}
+
+model Appointment {
+  id                  Int                    @id @default(autoincrement())
+  businessId          Int                    @map("business_id")
+  clientId            Int                    @map("client_id")
+  appointmentDate     DateTime               @map("appointment_date") @db.Date
+  appointmentTime     DateTime?              @map("appointment_time") @db.Time
+  status              String                 @default("Scheduled")
+  cost                Decimal?               @db.Decimal(10, 2)
+  notes               String?
+  createdAt           DateTime               @default(now()) @map("created_at")
+  business            Business               @relation(fields: [businessId], references: [id])
+  client              Client                 @relation(fields: [clientId], references: [id])
+  appointmentServices AppointmentService[]
+
+  @@map("appointments")
+}
+
+model AppointmentService {
+  appointmentId Int         @map("appointment_id")
+  serviceId     Int         @map("service_id")
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service       Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([appointmentId, serviceId])
+  @@map("appointment_services")
+}
+
+model Product {
+  id           Int      @id @default(autoincrement())
+  businessId   Int      @map("business_id")
+  name         String
+  currentStock Int      @default(0) @map("current_stock")
+  minStock     Int      @default(0) @map("min_stock")
+  createdAt    DateTime @default(now()) @map("created_at")
+  business     Business @relation(fields: [businessId], references: [id])
+
+  @@map("products")
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  businessId  Int      @map("business_id")
+  description String
+  amount      Decimal  @db.Decimal(10, 2)
+  date        DateTime
+  business    Business @relation(fields: [businessId], references: [id])
+
+  @@map("expenses")
+}
+
+model Subscription {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @unique @map("business_id")
+  planId     Int      @map("plan_id")
+  status     String
+  startDate  DateTime @map("start_date")
+  endDate    DateTime @map("end_date")
+  business   Business @relation(fields: [businessId], references: [id])
+  plan       Plan     @relation(fields: [planId], references: [id])
+  payments   Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id             Int           @id @default(autoincrement())
+  businessId     Int           @map("business_id")
+  amount         Decimal       @db.Decimal(10, 2)
+  date           DateTime      @default(now())
+  planName       String        @map("plan_name")
+  subscriptionId Int?          @map("subscription_id")
+  business       Business      @relation(fields: [businessId], references: [id])
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@map("payments")
+}
+```
+
+#### 2. Sube los Cambios a GitHub
+
+Una vez que hayas reemplazado el contenido del archivo, abre tu terminal y sube el cambio.
+
+```bash
+# Navega a la carpeta raíz de tu proyecto
+cd C:\Users\Javier Gutiérrez\Videos\multi-plataforma
+
+# Añade el archivo schema.prisma corregido
+git add backend/prisma/schema.prisma
+
+# Guarda el cambio
+git commit -m "fix: Replace SQL with correct Prisma schema language"
+
+# Sube a GitHub
+git push
+
