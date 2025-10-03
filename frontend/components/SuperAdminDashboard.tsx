@@ -432,7 +432,46 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ businesses, s
             </Modal>
 
             <Modal isOpen={isPlanModalOpen} onClose={handleCloseModals} title={currentPlan?.id ? "Editar Plan" : "Crear Plan"}>
-                {/* Formulario de Plan */}
+                <form onSubmit={handleSavePlan} className="space-y-4">
+                    <div>
+                        <label htmlFor="planName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Plan</label>
+                        <input
+                            type="text"
+                            id="planName"
+                            value={currentPlan?.name || ''}
+                            onChange={e => setCurrentPlan(p => ({ ...p, name: e.target.value }))}
+                            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="planPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Precio (COP)</label>
+                        <input
+                            type="number"
+                            id="planPrice"
+                            value={currentPlan?.price || ''}
+                            onChange={e => setCurrentPlan(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
+                            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            required
+                            min="0"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="planFeatures" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Características (una por línea)</label>
+                        <textarea
+                            id="planFeatures"
+                            rows={4}
+                            value={(currentPlan?.features as any) || ''}
+                            onChange={e => setCurrentPlan(p => ({ ...p, features: e.target.value as any }))}
+                            className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            placeholder="- Característica 1&#10;- Característica 2&#10;- Característica 3"
+                        />
+                    </div>
+                    <div className="mt-6 flex justify-end space-x-4">
+                        <button type="button" onClick={handleCloseModals} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg shadow hover:bg-green-600">Guardar Plan</button>
+                    </div>
+                </form>
             </Modal>
             
             <Modal isOpen={isDeleteBusinessModalOpen} onClose={handleCloseModals} title="Confirmar Eliminación">
