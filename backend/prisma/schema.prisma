@@ -89,8 +89,7 @@ model Appointment {
   id                  Int                    @id @default(autoincrement())
   businessId          Int                    @map("business_id")
   clientId            Int                    @map("client_id")
-  appointmentDate     DateTime               @map("appointment_date") @db.Date
-  appointmentTime     DateTime?              @map("appointment_time") @db.Time
+  dateTime            DateTime
   status              String                 @default("Scheduled")
   cost                Decimal?               @db.Decimal(10, 2)
   notes               String?
