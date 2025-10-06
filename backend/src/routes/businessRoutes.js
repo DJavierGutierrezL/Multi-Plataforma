@@ -88,6 +88,8 @@ router.get('/my-data', verifyToken, async (req, res) => {
             cost: a.cost,
             status: a.status,
             notes: a.notes,
+            extraNotes: a.extraNotes,
+            extraCost: a.extraCost,
             serviceIds: a.appointmentServices.map(s => s.serviceId)
         }));
 
