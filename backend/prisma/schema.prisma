@@ -93,6 +93,8 @@ model Appointment {
   status              String                 @default("Scheduled")
   cost                Decimal?               @db.Decimal(10, 2)
   notes               String?
+  extraNotes          String? 
+  extraCost           Decimal? @db.Decimal(10, 2) 
   createdAt           DateTime               @default(now()) @map("created_at")
   business            Business               @relation(fields: [businessId], references: [id])
   client              Client                 @relation(fields: [clientId], references: [id])

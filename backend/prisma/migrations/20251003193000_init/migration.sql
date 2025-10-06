@@ -73,6 +73,8 @@ CREATE TABLE "appointments" (
     "status" TEXT NOT NULL DEFAULT 'Scheduled',
     "cost" DECIMAL(10,2),
     "notes" TEXT,
+    "extraNotes" TEXT,
+    "extraCost" DECIMAL(10,2),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "appointments_pkey" PRIMARY KEY ("id")
