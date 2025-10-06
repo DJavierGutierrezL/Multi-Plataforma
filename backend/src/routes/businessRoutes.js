@@ -17,7 +17,6 @@ router.post('/', verifyToken, async (req, res) => {
             data: {
                 salonName: salonName,
                 type: type,
-                // Valores por defecto definidos en el schema
             }
         });
         const formattedBusiness = {
@@ -43,7 +42,6 @@ router.get('/my-data', verifyToken, async (req, res) => {
         return res.status(403).json({ message: "Usuario no asignado a un negocio." });
     }
     try {
-        // Con Prisma, podemos traer todos los datos relacionados en una sola consulta eficiente
         const businessData = await prisma.business.findUnique({
             where: { id: businessId },
             include: {
@@ -55,7 +53,10 @@ router.get('/my-data', verifyToken, async (req, res) => {
                         client: { select: { firstName: true, lastName: true } },
                         appointmentServices: { select: { serviceId: true } }
                     },
-                    orderBy: [{ appointmentDate: 'desc' }, { appointmentTime: 'asc' }]
+                    // --- INICIO DE LA CORRECCIÓN ---
+                    // Se ordena por el campo unificado 'dateTime' en orden descendente.
+                    orderBy: { dateTime: 'desc' }
+                    // --- FIN DE LA CORRECCIÓN ---
                 }
             }
         });
@@ -64,10 +65,8 @@ router.get('/my-data', verifyToken, async (req, res) => {
             return res.status(404).json({ message: "El negocio asignado no fue encontrado." });
         }
         
-        // El frontend espera los planes globales, no solo los del negocio
         const allPlans = await prisma.plan.findMany();
         
-        // Formateamos los datos para que coincidan con la estructura esperada por el frontend
         const formattedBusiness = {
             id: businessData.id,
             type: businessData.type,
@@ -83,8 +82,9 @@ router.get('/my-data', verifyToken, async (req, res) => {
             clientId: a.clientId,
             clientFirstName: a.client.firstName,
             clientLastName: a.client.lastName,
-            appointmentDate: a.appointmentDate.toISOString().split('T')[0],
-            appointmentTime: a.appointmentTime,
+            // Formateamos la fecha y hora desde el campo 'dateTime'
+            appointmentDate: a.dateTime.toISOString().split('T')[0],
+            appointmentTime: a.dateTime.toTimeString().split(' ')[0].substring(0, 5),
             cost: a.cost,
             status: a.status,
             notes: a.notes,
@@ -149,14 +149,12 @@ router.delete('/:id', verifyToken, async (req, res) => {
 // PUT /api/businesses/theme -> Actualizar el tema de un negocio
 router.put('/theme', verifyToken, async (req, res) => {
     const { primaryColor, backgroundColor } = req.body;
-    // SuperAdmin puede editar otros negocios, los usuarios solo el suyo
     const businessIdToUpdate = req.user.role === 'SuperAdmin' ? req.body.businessIdForAdmin : req.user.businessId;
 
     if (!primaryColor || !backgroundColor || !businessIdToUpdate) {
         return res.status(400).json({ message: "Se requieren colores y ID de negocio." });
     }
     
-    // Convertimos 'Rosa' a 'Pink' para la base de datos
     const primaryColorForDb = primaryColor === 'Rosa' ? 'Pink' : primaryColor;
 
     try {
