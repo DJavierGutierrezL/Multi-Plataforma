@@ -18,8 +18,8 @@ export interface Appointment {
     notes: string;
     status: string;
     cost: number;
-    extraNotes?: string; // <-- Campo nuevo
-    extraCost?: number;  // <-- Campo nuevo
+    extraNotes?: string;
+    extraCost?: number;
 }
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
@@ -139,7 +139,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         const servicesCost = services
             .filter(s => selectedServiceIds.includes(s.id))
             .reduce((total, service) => total + Number(service.price), 0);
-        return servicesCost + Number(extraCost);
+        return servicesCost + Number(extraCost || 0);
     };
 
     useEffect(() => {
@@ -177,7 +177,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     const handleCloseModal = () => {
         setIsCreateModalOpen(false);
         setViewingAppointment(null);
-        setFormState(initialFormState); // Resetea el formulario de creación
+        setFormState(initialFormState);
     };
 
     const handleFormChange = (e: React.ChangeEvent<any>) => setFormState(prev => ({ ...prev, [e.target.name]: e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value }));
@@ -202,7 +202,15 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     const handleSaveAppointment = async (e: React.FormEvent) => { 
         e.preventDefault(); 
         if (!formState.clientId) { alert("Por favor, selecciona un cliente de la lista."); return; }
-        await onCreateAppointment({ ...formState, clientId: parseInt(formState.clientId) }); 
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Nos aseguramos de enviar los datos extra al backend
+        await onCreateAppointment({ 
+            ...formState, 
+            clientId: parseInt(formState.clientId),
+            extraNotes: formState.showExtra ? formState.extraNotes : '',
+            extraCost: formState.showExtra ? formState.extraCost : 0,
+        }); 
+        // --- FIN DE LA CORRECCIÓN ---
         handleCloseModal(); 
     };
 
@@ -210,7 +218,15 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         e.preventDefault(); 
         if (!editFormState.clientId) { alert("Por favor, selecciona un cliente de la lista."); return; }
         if (viewingAppointment) { 
-            await onUpdateAppointment(viewingAppointment.id, { ...editFormState, clientId: parseInt(editFormState.clientId) }); 
+            // --- INICIO DE LA CORRECCIÓN ---
+            // Nos aseguramos de enviar los datos extra al backend
+            await onUpdateAppointment(viewingAppointment.id, { 
+                ...editFormState, 
+                clientId: parseInt(editFormState.clientId),
+                extraNotes: editFormState.showExtra ? editFormState.extraNotes : '',
+                extraCost: editFormState.showExtra ? editFormState.extraCost : 0,
+            }); 
+            // --- FIN DE LA CORRECCIÓN ---
             handleCloseModal(); 
         } 
     };
