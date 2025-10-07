@@ -60,7 +60,7 @@ router.post('/', verifyToken, async (req, res) => {
         const newAppointment = await prisma.appointment.create({
             data: {
                 businessId,
-                clientId,
+                clientId: parseInt(clientId),
                 dateTime: dateTime, // Usamos el nuevo campo unificado
                 notes,
                 cost: totalCost,
@@ -113,7 +113,7 @@ router.put('/:id', verifyToken, async (req, res) => {
         const updatedAppointment = await prisma.appointment.update({
             where: { id: parseInt(id), businessId },
             data: {
-                clientId,
+                clientId: parseInt(clientId),
                 dateTime: dateTime, // Actualizamos el campo unificado
                 status,
                 notes,
