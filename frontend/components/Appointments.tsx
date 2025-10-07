@@ -202,15 +202,12 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     const handleSaveAppointment = async (e: React.FormEvent) => { 
         e.preventDefault(); 
         if (!formState.clientId) { alert("Por favor, selecciona un cliente de la lista."); return; }
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Nos aseguramos de enviar los datos extra al backend
         await onCreateAppointment({ 
             ...formState, 
             clientId: parseInt(formState.clientId),
             extraNotes: formState.showExtra ? formState.extraNotes : '',
             extraCost: formState.showExtra ? formState.extraCost : 0,
         }); 
-        // --- FIN DE LA CORRECCIÓN ---
         handleCloseModal(); 
     };
 
@@ -219,7 +216,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         if (!editFormState.clientId) { alert("Por favor, selecciona un cliente de la lista."); return; }
         if (viewingAppointment) { 
             // --- INICIO DE LA CORRECCIÓN ---
-            // Nos aseguramos de enviar los datos extra al backend
+            // Nos aseguramos de enviar los datos extra al backend al actualizar
             await onUpdateAppointment(viewingAppointment.id, { 
                 ...editFormState, 
                 clientId: parseInt(editFormState.clientId),
