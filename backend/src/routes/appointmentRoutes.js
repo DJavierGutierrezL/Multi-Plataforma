@@ -3,7 +3,7 @@ const router = express.Router();
 const prisma = require('../prisma');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-// GET /api/appointments -> Obtener todas las citas del negocio
+// GET /api/appointments
 router.get('/', verifyToken, async (req, res) => {
     const { businessId } = req.user;
     try {
@@ -13,20 +13,21 @@ router.get('/', verifyToken, async (req, res) => {
                 client: { select: { firstName: true, lastName: true } },
                 appointmentServices: { select: { serviceId: true } }
             },
-            orderBy: { dateTime: 'desc' } // Ordenamos por el nuevo campo unificado
+            orderBy: { dateTime: 'desc' }
         });
         
-        // Formateamos la respuesta para devolver fecha y hora por separado, como espera el frontend
         const formattedAppointments = appointments.map(a => ({
             id: a.id,
             clientId: a.clientId,
             clientFirstName: a.client.firstName,
             clientLastName: a.client.lastName,
-            appointmentDate: a.dateTime.toISOString().split('T')[0], // Extraemos la fecha
-            appointmentTime: a.dateTime.toTimeString().split(' ')[0].substring(0, 5), // Extraemos la hora
+            appointmentDate: a.dateTime.toISOString().split('T')[0],
+            appointmentTime: a.dateTime.toTimeString().split(' ')[0].substring(0, 5),
             cost: a.cost,
             status: a.status,
             notes: a.notes,
+            extraNotes: a.extraNotes,
+            extraCost: a.extraCost,
             serviceIds: a.appointmentServices.map(s => s.serviceId),
         }));
         res.json(formattedAppointments);
@@ -36,38 +37,39 @@ router.get('/', verifyToken, async (req, res) => {
     }
 });
 
-// POST /api/appointments -> Crear una nueva cita para el negocio
+// POST /api/appointments
 router.post('/', verifyToken, async (req, res) => {
     const { businessId } = req.user;
-    const { clientId, appointmentDate, appointmentTime, notes, serviceIds } = req.body;
+    const { clientId, appointmentDate, appointmentTime, notes, serviceIds, extraNotes, extraCost } = req.body;
 
-    if (!clientId || !appointmentDate || !appointmentTime || !serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
-        return res.status(400).json({ message: "Cliente, fecha, hora y al menos un servicio son obligatorios." });
+    // --- INICIO DE LA CORRECCIÓN ---
+    const hasServices = serviceIds && Array.isArray(serviceIds) && serviceIds.length > 0;
+    const hasExtraCost = extraCost && parseFloat(extraCost) > 0;
+
+    if (!clientId || !appointmentDate || !appointmentTime || (!hasServices && !hasExtraCost)) {
+        return res.status(400).json({ message: "Cliente, fecha, hora y al menos un servicio (o costo extra) son obligatorios." });
     }
+    // --- FIN DE LA CORRECCIÓN ---
 
     try {
         const services = await prisma.service.findMany({
-            where: { id: { in: serviceIds }, businessId: businessId }
+            where: { id: { in: serviceIds || [] }, businessId }
         });
-        if (services.length !== serviceIds.length) {
-            return res.status(400).json({ message: "Uno o más servicios no son válidos para este negocio." });
-        }
-        const totalCost = services.reduce((sum, service) => sum + parseFloat(service.price), 0);
 
-        // Unimos la fecha y la hora en un solo objeto Date para guardarlo en el campo 'dateTime'
+        const totalCost = services.reduce((sum, service) => sum + parseFloat(service.price), 0) + (parseFloat(extraCost) || 0);
         const dateTime = new Date(`${appointmentDate}T${appointmentTime}`);
 
         const newAppointment = await prisma.appointment.create({
             data: {
                 businessId,
                 clientId: parseInt(clientId),
-                dateTime: dateTime, // Usamos el nuevo campo unificado
+                dateTime,
                 notes,
                 cost: totalCost,
                 status: 'Scheduled',
-                appointmentServices: {
-                    create: serviceIds.map(id => ({ serviceId: id }))
-                }
+                extraNotes,
+                extraCost: extraCost ? parseFloat(extraCost) : null,
+                appointmentServices: { create: serviceIds ? serviceIds.map(id => ({ serviceId: id })) : [] }
             },
             include: {
                 client: { select: { firstName: true, lastName: true } },
@@ -75,49 +77,49 @@ router.post('/', verifyToken, async (req, res) => {
             }
         });
         
-        // Devolvemos la respuesta formateada como el frontend la espera
         res.status(201).json({
-            id: newAppointment.id,
-            clientId: newAppointment.clientId,
-            clientFirstName: newAppointment.client.firstName,
-            clientLastName: newAppointment.client.lastName,
+            id: newAppointment.id, clientId: newAppointment.clientId,
+            clientFirstName: newAppointment.client.firstName, clientLastName: newAppointment.client.lastName,
             appointmentDate: newAppointment.dateTime.toISOString().split('T')[0],
             appointmentTime: newAppointment.dateTime.toTimeString().split(' ')[0].substring(0, 5),
-            cost: newAppointment.cost,
-            status: newAppointment.status,
-            notes: newAppointment.notes,
+            cost: newAppointment.cost, status: newAppointment.status, notes: newAppointment.notes,
+            extraNotes: newAppointment.extraNotes, extraCost: newAppointment.extraCost,
             serviceIds: newAppointment.appointmentServices.map(s => s.serviceId),
         });
-
     } catch (error) {
         console.error("Error al crear la cita:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
 
-// PUT /api/appointments/:id -> Actualizar una cita del negocio
+// PUT /api/appointments/:id
 router.put('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { businessId } = req.user;
-    const { clientId, appointmentDate, appointmentTime, status, notes, serviceIds } = req.body;
+    const { clientId, appointmentDate, appointmentTime, status, notes, serviceIds, extraNotes, extraCost } = req.body;
     
+    // --- INICIO DE LA CORRECCIÓN ---
+    const hasServices = serviceIds && Array.isArray(serviceIds) && serviceIds.length > 0;
+    const hasExtraCost = extraCost && parseFloat(extraCost) > 0;
+
+    if (!clientId || !appointmentDate || !appointmentTime || (!hasServices && !hasExtraCost)) {
+        return res.status(400).json({ message: "Cliente, fecha, hora y al menos un servicio (o costo extra) son obligatorios." });
+    }
+    // --- FIN DE LA CORRECCIÓN ---
+
     try {
         const services = await prisma.service.findMany({
-            where: { id: { in: serviceIds || [] }, businessId: businessId }
+            where: { id: { in: serviceIds || [] }, businessId }
         });
-        const finalCost = services.reduce((sum, service) => sum + parseFloat(service.price), 0);
-
-        // Unimos la fecha y hora para el nuevo campo 'dateTime'
+        const finalCost = services.reduce((sum, service) => sum + parseFloat(service.price), 0) + (parseFloat(extraCost) || 0);
         const dateTime = new Date(`${appointmentDate}T${appointmentTime}`);
 
         const updatedAppointment = await prisma.appointment.update({
             where: { id: parseInt(id), businessId },
             data: {
-                clientId: parseInt(clientId),
-                dateTime: dateTime, // Actualizamos el campo unificado
-                status,
-                notes,
-                cost: finalCost,
+                clientId: parseInt(clientId), dateTime, status, notes, cost: finalCost,
+                extraNotes,
+                extraCost: extraCost ? parseFloat(extraCost) : null,
                 appointmentServices: {
                     deleteMany: {},
                     create: serviceIds ? serviceIds.map(sid => ({ serviceId: sid })) : []
@@ -130,25 +132,21 @@ router.put('/:id', verifyToken, async (req, res) => {
         });
         
         res.json({
-            id: updatedAppointment.id,
-            clientId: updatedAppointment.clientId,
-            clientFirstName: updatedAppointment.client.firstName,
-            clientLastName: updatedAppointment.client.lastName,
+            id: updatedAppointment.id, clientId: updatedAppointment.clientId,
+            clientFirstName: updatedAppointment.client.firstName, clientLastName: updatedAppointment.client.lastName,
             appointmentDate: updatedAppointment.dateTime.toISOString().split('T')[0],
             appointmentTime: updatedAppointment.dateTime.toTimeString().split(' ')[0].substring(0, 5),
-            cost: updatedAppointment.cost,
-            status: updatedAppointment.status,
-            notes: updatedAppointment.notes,
+            cost: updatedAppointment.cost, status: updatedAppointment.status, notes: updatedAppointment.notes,
+            extraNotes: updatedAppointment.extraNotes, extraCost: updatedAppointment.extraCost,
             serviceIds: updatedAppointment.appointmentServices.map(s => s.serviceId),
         });
-
     } catch (error) {
         console.error("Error al actualizar la cita:", error);
         res.status(500).json({ message: "Error interno del servidor" });
     }
 });
 
-// DELETE /api/appointments/:id -> Eliminar una cita del negocio
+// DELETE /api/appointments/:id
 router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { businessId } = req.user;
