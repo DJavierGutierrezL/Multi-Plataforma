@@ -384,8 +384,8 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
              </div>
 
             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Agendar Nueva Cita">
-                <form onSubmit={handleSaveAppointment} className="flex flex-col h-full">
-                    <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                <form onSubmit={handleSaveAppointment} className="flex-grow flex flex-col">
+                    <div className="overflow-y-auto p-4 space-y-4">
                         <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={formState.clientId} onClientSelect={(clientId) => setFormState(prev => ({ ...prev, clientId }))} /></div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Servicios</label>
