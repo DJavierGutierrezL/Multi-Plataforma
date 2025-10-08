@@ -52,7 +52,7 @@ const NavItem: React.FC<{
 const Sidebar: React.FC<SidebarProps> = ({ businessName, businessType, currentPage, setCurrentPage, isSidebarOpen, setIsSidebarOpen, onLogout, isImpersonating, onExitImpersonation, subscriptionEndDate, planName }) => {
   const navItems = [
     { id: Page.Dashboard, icon: <DashboardIcon className="w-6 h-6" />, label: 'Dashboard' },
-    { id: Page.Appointments, icon: <CalendarIcon className="w-6 h-6" />, label: 'Citas' },
+    { id: Page.Appointments, icon: <CalendarIcon className="w-6 h-6" />, label: 'Agenda' },
     { id: Page.Clients, icon: <UsersIcon className="w-6 h-6" />, label: 'Clientes' },
     { id: Page.Inventory, icon: <BoxIcon className="w-6 h-6" />, label: 'Inventario y Gastos' },
     { id: Page.VirtualAssistant, icon: <SparklesIcon className="w-6 h-6" />, label: 'Asistente IA' },
