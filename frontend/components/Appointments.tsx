@@ -21,7 +21,7 @@ export interface Appointment {
     extraNotes?: string;
     extraCost?: number;
 }
-// --- MODAL MODIFICADO PARA MEJOR EXPERIENCIA MÓVIL ---
+// --- MODAL MODIFICADO PARA MEJOR EXPERIENCIA MÓVIL Y DE ESCRITORIO ---
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
@@ -31,6 +31,7 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
                     <h2 className="text-xl font-bold">{title}</h2>
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
                 </div>
+                {/* El contenido del children ahora controla su propio scroll y layout */}
                 {children}
             </div>
         </div>
@@ -383,29 +384,33 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
              </div>
 
             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Agendar Nueva Cita">
-                <form onSubmit={handleSaveAppointment} className="p-4 space-y-4">
-                    <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={formState.clientId} onClientSelect={(clientId) => setFormState(prev => ({ ...prev, clientId }))} /></div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Servicios</label>
-                        <div className="max-h-40 overflow-y-auto p-2 border border-border rounded-lg space-y-2 bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
-                            {services.map(service => (<label key={service.id} className="flex items-center space-x-2 text-foreground"><input type="checkbox" checked={formState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, false)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary" /><span>{service.name}</span></label>))}
-                            <label className="flex items-center space-x-2 text-foreground font-semibold"><input type="checkbox" checked={formState.showExtra} onChange={() => handleExtraChange(false)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/><span>Otro</span></label>
+                <form onSubmit={handleSaveAppointment} className="flex flex-col h-full">
+                    <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                        <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={formState.clientId} onClientSelect={(clientId) => setFormState(prev => ({ ...prev, clientId }))} /></div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Servicios</label>
+                            <div className="max-h-40 overflow-y-auto p-2 border border-border rounded-lg space-y-2 bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
+                                {services.map(service => (<label key={service.id} className="flex items-center space-x-2 text-foreground"><input type="checkbox" checked={formState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, false)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary" /><span>{service.name}</span></label>))}
+                                <label className="flex items-center space-x-2 text-foreground font-semibold"><input type="checkbox" checked={formState.showExtra} onChange={() => handleExtraChange(false)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/><span>Otro</span></label>
+                            </div>
                         </div>
-                    </div>
-                    {formState.showExtra && (
-                        <div className="p-3 border border-border rounded-lg space-y-3 bg-accent/50">
-                            <textarea name="extraNotes" value={formState.extraNotes} onChange={handleFormChange} placeholder="Descripción del servicio/producto adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
-                            <input name="extraCost" type="number" value={formState.extraCost} onChange={handleFormChange} placeholder="Precio adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                        {formState.showExtra && (
+                            <div className="p-3 border border-border rounded-lg space-y-3 bg-accent/50">
+                                <textarea name="extraNotes" value={formState.extraNotes} onChange={handleFormChange} placeholder="Descripción del servicio/producto adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                                <input name="extraCost" type="number" value={formState.extraCost} onChange={handleFormChange} placeholder="Precio adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label className="block text-sm font-medium mb-1">Fecha</label><input name="appointmentDate" type="date" value={formState.appointmentDate} onChange={handleFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
+                            <div><label className="block text-sm font-medium mb-1">Hora</label><input name="appointmentTime" type="time" value={formState.appointmentTime} onChange={handleFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
                         </div>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label className="block text-sm font-medium mb-1">Fecha</label><input name="appointmentDate" type="date" value={formState.appointmentDate} onChange={handleFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
-                        <div><label className="block text-sm font-medium mb-1">Hora</label><input name="appointmentTime" type="time" value={formState.appointmentTime} onChange={handleFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
+                        <textarea name="notes" value={formState.notes} onChange={handleFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
                     </div>
-                    <textarea name="notes" value={formState.notes} onChange={handleFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
-                    <div className="flex justify-between items-center pt-2">
-                        <span className="font-bold text-lg">Total: {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(formState.cost)}</span>
-                        <div className="flex space-x-4"><button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button><button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90">Guardar Cita</button></div>
+                    <div className="flex-shrink-0 p-4 bg-card border-t border-border rounded-b-2xl">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold text-lg">Total: {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(formState.cost)}</span>
+                            <div className="flex space-x-2"><button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button><button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90">Guardar Cita</button></div>
+                        </div>
                     </div>
                 </form>
             </Modal>
