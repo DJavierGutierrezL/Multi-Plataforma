@@ -21,6 +21,7 @@ export interface Appointment {
     extraNotes?: string;
     extraCost?: number;
 }
+// --- MODAL MODIFICADO PARA SOPORTAR CONTENIDO CON SCROLL Y FOOTER FIJO ---
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
@@ -30,6 +31,7 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
                     <h2 className="text-xl font-bold">{title}</h2>
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
                 </div>
+                {/* El children (el formulario) ahora controla su propio layout interno */}
                 {children}
             </div>
         </div>
@@ -382,7 +384,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
              </div>
 
             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Agendar Nueva Cita">
-                <form onSubmit={handleSaveAppointment} className="flex-grow flex flex-col">
+                <form onSubmit={handleSaveAppointment} className="flex flex-col h-full">
                     <div className="overflow-y-auto p-4 space-y-4">
                         <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={formState.clientId} onClientSelect={(clientId) => setFormState(prev => ({ ...prev, clientId }))} /></div>
                         <div>
@@ -416,6 +418,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
             <Modal isOpen={!!viewingAppointment} onClose={handleCloseModal} title="Editar Cita">
                 {viewingAppointment && editFormState && (
                     <form onSubmit={handleUpdateAppointment} className="flex flex-col h-full">
+                        {/* --- INICIO DE LA CORRECCIÓN: Contenido Deslizable --- */}
                         <div className="flex-grow overflow-y-auto p-4 space-y-4">
                             <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={editFormState.clientId} onClientSelect={(clientId) => setEditFormState((prev: any) => ({ ...prev, clientId }))}/></div>
                             <div>
@@ -445,12 +448,15 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                             <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
                         </div>
                         
+                        {/* --- INICIO DE LA CORRECCIÓN: Barra de Botones Adaptable --- */}
                         <div className="flex-shrink-0 p-4 bg-card border-t border-border rounded-b-2xl">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                {/* Botón Eliminar (izquierda en PC, abajo en móvil) */}
                                 <button type="button" onClick={handleDeleteFromModal} className="w-full sm:w-auto order-last sm:order-first bg-red-600 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2 hover:bg-red-700 transition-colors text-sm">
                                     <TrashIcon className="w-4 h-4" /> Eliminar
                                 </button>
                                 
+                                {/* Grupo de Botones Principales (derecha en PC, arriba en móvil) */}
                                 <div className="w-full sm:w-auto flex flex-col-reverse sm:flex-row sm:items-center gap-3">
                                     <div className="flex gap-2 w-full">
                                         <button type="button" onClick={handleCloseModal} className="w-1/2 sm:w-auto px-3 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent text-sm">Cancelar</button>
