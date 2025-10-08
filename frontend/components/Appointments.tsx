@@ -21,13 +21,17 @@ export interface Appointment {
     extraNotes?: string;
     extraCost?: number;
 }
+// --- MODAL MODIFICADO PARA MEJOR EXPERIENCIA MÓVIL ---
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-card text-card-foreground rounded-2xl shadow-lg w-full max-w-md">
-                <div className="flex justify-between items-center p-4 border-b border-border"><h2 className="text-xl font-bold">{title}</h2><button onClick={onClose} className="text-muted-foreground hover:text-foreground">&times;</button></div>
-                <div className="p-4 max-h-[80vh] overflow-y-auto">{children}</div>
+            <div className="bg-card text-card-foreground rounded-2xl shadow-lg w-full max-w-md flex flex-col max-h-[90vh]">
+                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border">
+                    <h2 className="text-xl font-bold">{title}</h2>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl">&times;</button>
+                </div>
+                {children} 
             </div>
         </div>
     );
@@ -137,8 +141,10 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         }
     }, [viewingAppointment]);
     
-    const calculateCost = (selectedServiceIds: number[], extraCost: number = 0) => {
-        const servicesCost = services.filter(s => selectedServiceIds.includes(s.id)).reduce((total, service) => total + Number(service.price), 0);
+    const calculateCost = (selectedServiceIds: number[] = [], extraCost: number = 0) => {
+        const servicesCost = services
+            .filter(s => selectedServiceIds.includes(s.id))
+            .reduce((total, service) => total + Number(service.price), 0);
         return servicesCost + Number(extraCost || 0);
     };
 
@@ -314,12 +320,12 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                                     >
                                         <span className={`self-end text-xs font-bold ${isSelected ? 'text-primary' : ''}`}>{day.getDate()}</span>
                                         <div className="space-y-1 w-full mt-1 overflow-y-auto text-xs">
-                                          {dayAppointments.slice(0, 2).map(app => (
+                                          {dayAppointments.slice(0, 1).map(app => (
                                               <div key={app.id} className="bg-primary/80 text-primary-foreground rounded p-1 truncate" onClick={(e) => { e.stopPropagation(); setViewingAppointment(app); }}>
                                                   <span>{formatTime12h(app.appointmentTime)}</span> - <span>{app.clientFirstName}</span>
                                               </div>
                                           ))}
-                                          {dayAppointments.length > 2 && <div className="text-muted-foreground text-center text-[10px]">...{dayAppointments.length - 2} más</div>}
+                                          {dayAppointments.length > 1 && <div className="text-muted-foreground text-center text-[10px]">...{dayAppointments.length - 1} más</div>}
                                       </div>
                                     </div>
                                 )
@@ -379,7 +385,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
              </div>
 
             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Agendar Nueva Cita">
-                <form onSubmit={handleSaveAppointment} className="space-y-4">
+                <form onSubmit={handleSaveAppointment} className="space-y-4 p-4">
                     <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={formState.clientId} onClientSelect={(clientId) => setFormState(prev => ({ ...prev, clientId }))} /></div>
                     <div>
                         <label className="block text-sm font-medium mb-1">Servicios</label>
@@ -408,8 +414,8 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
             
             <Modal isOpen={!!viewingAppointment} onClose={handleCloseModal} title="Editar Cita">
                 {viewingAppointment && editFormState && (
-                    <form onSubmit={handleUpdateAppointment} className="space-y-4">
-                        <div className="pb-16"> {/* <-- INICIO CORRECCIÓN: Padding inferior para evitar solapamiento */}
+                    <form onSubmit={handleUpdateAppointment} className="relative flex flex-col h-full">
+                        <div className="flex-grow overflow-y-auto p-4 space-y-4">
                             <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={editFormState.clientId} onClientSelect={(clientId) => setEditFormState((prev: any) => ({ ...prev, clientId }))}/></div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Servicios</label>
@@ -436,9 +442,9 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                                 </select>
                             </div>
                             <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
-                        </div> {/* <-- FIN CORRECCIÓN: Fin del div con padding */}
+                        </div>
                         
-                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-card border-t border-border rounded-b-2xl">
+                        <div className="flex-shrink-0 p-4 bg-card border-t border-border rounded-b-2xl">
                             <div className="flex justify-between items-center">
                                 <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-3 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors text-sm"><TrashIcon className="w-4 h-4" /> Eliminar</button>
                                 <div className="flex items-center gap-2">
