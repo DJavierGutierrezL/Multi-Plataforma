@@ -40,6 +40,10 @@ const ClockIcon = createIcon(<><circle cx="12" cy="12" r="10" /><polyline points
 const UserIcon = createIcon(<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>);
 const SparklesIcon = createIcon(<path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9 1.9 5.8 1.9-5.8 5.8-1.9-5.8-1.9z" />);
 const PencilIcon = createIcon(<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />);
+// --- INICIO DE LA MODIFICACIÓN ---
+const ChevronLeftIcon = createIcon(<polyline points="15 18 9 12 15 6" />);
+const ChevronRightIcon = createIcon(<polyline points="9 18 15 12 9 6" />);
+// --- FIN DE LA MODIFICACIÓN ---
 // --- Fin de Definiciones ---
 
 
@@ -142,6 +146,9 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [viewingAppointment, setViewingAppointment] = useState<AppointmentWithClient | null>(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
+    // --- INICIO DE LA MODIFICACIÓN ---
+    const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
+    // --- FIN DE LA MODIFICACIÓN ---
 
     const [formState, setFormState] = useState({
         clientId: '',
@@ -180,16 +187,89 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
             setEditFormState((prev: any) => ({ ...prev, cost: calculateCost(prev.serviceIds) }));
         }
     }, [editFormState?.serviceIds, services]);
-
-    const startOfWeek = new Date(selectedDate);
-    startOfWeek.setDate(selectedDate.getDate() - (selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1)); 
     
-    const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const calendarDays = Array.from({ length: 6 }, (_, i) => {
-        const day = new Date(startOfWeek);
-        day.setDate(startOfWeek.getDate() + i);
-        return day;
-    });
+    // --- INICIO DE LA MODIFICACIÓN ---
+    const { daysToRender, gridColsClass, weekDayHeaders } = useMemo(() => {
+        const currentDate = new Date(selectedDate);
+        if (calendarView === 'month') {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+
+            const startDay = (firstDayOfMonth.getDay() === 0) ? 6 : firstDayOfMonth.getDay() - 1; // 0 (Mon) to 6 (Sun)
+            const endDay = lastDayOfMonth.getDate();
+            
+            const days = [];
+            
+            // Days from previous month
+            for (let i = startDay; i > 0; i--) {
+                const day = new Date(firstDayOfMonth);
+                day.setDate(day.getDate() - i);
+                days.push({ date: day, isCurrentMonth: false });
+            }
+
+            // Days of current month
+            for (let i = 1; i <= endDay; i++) {
+                days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+            }
+
+            // Days from next month
+            const remaining = 42 - days.length; // 6 weeks grid
+            for (let i = 1; i <= remaining; i++) {
+                const day = new Date(lastDayOfMonth);
+                day.setDate(day.getDate() + i);
+                days.push({ date: day, isCurrentMonth: false });
+            }
+            
+            return {
+                daysToRender: days,
+                gridColsClass: 'grid-cols-7',
+                weekDayHeaders: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+            };
+        } else { // 'week' view
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - (currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1));
+            
+            const calendarDays = Array.from({ length: 6 }, (_, i) => {
+                const day = new Date(startOfWeek);
+                day.setDate(startOfWeek.getDate() + i);
+                return { date: day, isCurrentMonth: true };
+            });
+
+            return {
+                daysToRender: calendarDays,
+                gridColsClass: 'grid-cols-6',
+                weekDayHeaders: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+            };
+        }
+    }, [selectedDate, calendarView]);
+
+    const handlePrevPeriod = () => {
+        setSelectedDate(current => {
+            const newDate = new Date(current);
+            if (calendarView === 'month') {
+                newDate.setMonth(newDate.getMonth() - 1);
+            } else {
+                newDate.setDate(newDate.getDate() - 7);
+            }
+            return newDate;
+        });
+    };
+
+    const handleNextPeriod = () => {
+        setSelectedDate(current => {
+            const newDate = new Date(current);
+            if (calendarView === 'month') {
+                newDate.setMonth(newDate.getMonth() + 1);
+            } else {
+                newDate.setDate(newDate.getDate() + 7);
+            }
+            return newDate;
+        });
+    };
+    // --- FIN DE LA MODIFICACIÓN ---
 
     const formatTime12h = (time24h: string): string => {
         if (!time24h) return '';
@@ -258,22 +338,43 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                 </button>
             </div>
 
+            {/* --- INICIO DE LA MODIFICACIÓN --- */}
             <div className="bg-card p-4 md:p-6 rounded-2xl shadow-lg border border-border">
-                <h3 className="text-xl font-semibold mb-4 text-card-foreground">Calendario Semanal</h3>
-                <div className="grid grid-cols-6 gap-2 text-center">
-                    {weekDays.map(day => <div key={day} className="font-bold text-muted-foreground text-sm">{day}</div>)}
-                    {calendarDays.map((day, index) => {
-                        const dayAppointments = filterAndSortAppointments(day);
-                        const isSelected = day.toDateString() === selectedDate.toDateString();
+                <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                    <div className="flex items-center gap-4">
+                        <button onClick={handlePrevPeriod} className="p-2 rounded-md hover:bg-accent"><ChevronLeftIcon className="w-5 h-5" /></button>
+                        <h3 className="text-xl font-semibold text-card-foreground text-center">
+                           {selectedDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+                        </h3>
+                        <button onClick={handleNextPeriod} className="p-2 rounded-md hover:bg-accent"><ChevronRightIcon className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex items-center bg-muted p-1 rounded-lg">
+                         <button 
+                            onClick={() => setCalendarView('week')}
+                            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${calendarView === 'week' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:bg-accent'}`}
+                         >Semanal</button>
+                         <button 
+                            onClick={() => setCalendarView('month')}
+                            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${calendarView === 'month' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:bg-accent'}`}
+                         >Mensual</button>
+                    </div>
+                </div>
+
+                <div className={`grid ${gridColsClass} gap-2 text-center`}>
+                    {weekDayHeaders.map(day => <div key={day} className="font-bold text-muted-foreground text-sm">{day}</div>)}
+                    {daysToRender.map(({ date, isCurrentMonth }, index) => {
+                        const dayAppointments = filterAndSortAppointments(date);
+                        const isSelected = date.toDateString() === selectedDate.toDateString();
                         
                         return (
                             <div 
                                 key={index} 
-                                onClick={() => setSelectedDate(day)} 
-                                className={`border rounded-lg cursor-pointer transition-all duration-200 flex flex-col items-start p-2 min-h-[120px]
+                                onClick={() => setSelectedDate(date)} 
+                                className={`border rounded-lg cursor-pointer transition-all duration-200 flex flex-col items-start p-2 min-h-[100px]
+                                    ${isCurrentMonth ? 'bg-transparent' : 'bg-muted/50'}
                                     ${isSelected ? 'ring-2 ring-primary bg-primary/10' : 'hover:bg-accent border-border'}`}
                             >
-                                <div className={`font-bold text-sm self-end ${isSelected ? 'text-primary' : 'text-foreground'}`}>{day.getDate()}</div>
+                                <div className={`font-bold text-sm self-end ${isSelected ? 'text-primary' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>{date.getDate()}</div>
                                 <div className="space-y-1 w-full mt-1 overflow-y-auto">
                                     {dayAppointments.slice(0, 2).map(app => (
                                         <div key={app.id} className="bg-primary/80 text-primary-foreground text-xs rounded p-1 text-left truncate cursor-pointer" onClick={(e) => { e.stopPropagation(); setViewingAppointment(app); }}>
@@ -287,6 +388,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                     })}
                 </div>
             </div>
+            {/* --- FIN DE LA MODIFICACIÓN --- */}
             
             <div className="space-y-4">
                  <h3 className="text-2xl font-bold text-card-foreground">
@@ -308,14 +410,12 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                                                 <p className="text-sm text-muted-foreground flex items-center"><UserIcon className="w-4 h-4 mr-2"/>Cliente</p>
                                                 <p className="font-bold text-lg text-card-foreground">{app.clientFirstName} {app.clientLastName}</p>
                                             </div>
-                                            {/* --- INICIO DE LA CORRECCIÓN --- */}
                                             <div className="text-right">
                                                 <div className={`text-xs font-bold py-1 px-3 rounded-full border ${getStatusClasses(app.status)}`}>{app.status}</div>
                                                 <button onClick={() => setViewingAppointment(app)} className="mt-2 bg-accent text-accent-foreground p-2 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors">
                                                     <PencilIcon className="w-5 h-5"/>
                                                 </button>
                                             </div>
-                                            {/* --- FIN DE LA CORRECCIÓN --- */}
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground flex items-center"><SparklesIcon className="w-4 h-4 mr-2"/>Servicios</p>
