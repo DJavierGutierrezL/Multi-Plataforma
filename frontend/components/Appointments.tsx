@@ -306,7 +306,6 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                                 const isSelected = day.toDateString() === selectedDate.toDateString();
                                 const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
                                 const dayAppointments = filterAndSortAppointments(day);
-                                
                                 return (
                                     <div key={index} onClick={() => handleDayClick(day)}
                                         className={`h-24 md:h-28 rounded-lg cursor-pointer transition-colors flex flex-col p-2 border ${
@@ -410,39 +409,44 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
             <Modal isOpen={!!viewingAppointment} onClose={handleCloseModal} title="Editar Cita">
                 {viewingAppointment && editFormState && (
                     <form onSubmit={handleUpdateAppointment} className="space-y-4">
-                        <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={editFormState.clientId} onClientSelect={(clientId) => setEditFormState((prev: any) => ({ ...prev, clientId }))}/></div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Servicios</label>
-                            <div className="max-h-40 overflow-y-auto p-2 border border-border rounded-lg space-y-2 bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
-                                {services.map(service => (<label key={service.id} className="flex items-center space-x-2 text-foreground"><input type="checkbox" checked={editFormState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, true)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/><span>{service.name}</span></label>))}
-                                <label className="flex items-center space-x-2 text-foreground font-semibold"><input type="checkbox" checked={editFormState.showExtra} onChange={() => handleExtraChange(true)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/><span>Otro</span></label>
+                        <div className="pb-16"> {/* <-- INICIO CORRECCIÓN: Padding inferior para evitar solapamiento */}
+                            <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={editFormState.clientId} onClientSelect={(clientId) => setEditFormState((prev: any) => ({ ...prev, clientId }))}/></div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Servicios</label>
+                                <div className="max-h-40 overflow-y-auto p-2 border border-border rounded-lg space-y-2 bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
+                                    {services.map(service => (<label key={service.id} className="flex items-center space-x-2 text-foreground"><input type="checkbox" checked={editFormState.serviceIds.includes(service.id)} onChange={() => handleServiceChange(service.id, true)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/><span>{service.name}</span></label>))}
+                                    <label className="flex items-center space-x-2 text-foreground font-semibold"><input type="checkbox" checked={editFormState.showExtra} onChange={() => handleExtraChange(true)} className="form-checkbox h-4 w-4 text-primary rounded bg-card focus:ring-primary"/><span>Otro</span></label>
+                                </div>
                             </div>
-                        </div>
-                        {editFormState.showExtra && (
-                            <div className="p-3 border border-border rounded-lg space-y-3 bg-accent/50">
-                                <textarea name="extraNotes" value={editFormState.extraNotes} onChange={handleEditFormChange} placeholder="Descripción del servicio/producto adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
-                                <input name="extraCost" type="number" value={editFormState.extraCost} onChange={handleEditFormChange} placeholder="Precio adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                            {editFormState.showExtra && (
+                                <div className="p-3 border border-border rounded-lg space-y-3 bg-accent/50">
+                                    <textarea name="extraNotes" value={editFormState.extraNotes} onChange={handleEditFormChange} placeholder="Descripción del servicio/producto adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                                    <input name="extraCost" type="number" value={editFormState.extraCost} onChange={handleEditFormChange} placeholder="Precio adicional" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                                </div>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-medium mb-1">Fecha</label><input name="appointmentDate" type="date" value={editFormState.appointmentDate} onChange={handleEditFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
+                                <div><label className="block text-sm font-medium mb-1">Hora</label><input name="appointmentTime" type="time" value={editFormState.appointmentTime} onChange={handleEditFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
                             </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Fecha</label><input name="appointmentDate" type="date" value={editFormState.appointmentDate} onChange={handleEditFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
-                            <div><label className="block text-sm font-medium mb-1">Hora</label><input name="appointmentTime" type="time" value={editFormState.appointmentTime} onChange={handleEditFormChange} required className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/></div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Estado</label>
-                            <select name="status" value={editFormState.status} onChange={handleEditFormChange} className="w-full p-2 border border-border rounded-lg text-foreground bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
-                                <option value={AppointmentStatus.Scheduled}>Agendada</option><option value={AppointmentStatus.Completed}>Completada</option>
-                                <option value={AppointmentStatus.Canceled}>Cancelada</option><option value={AppointmentStatus.PaymentPending}>Falta Pago</option>
-                            </select>
-                        </div>
-                        <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
-                        <div className="flex justify-between items-center pt-4">
-                            <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors"><TrashIcon className="w-5 h-5" /> Eliminar</button>
-                            <div className="flex items-center gap-4">
-                                <span className="font-bold text-lg">Total: {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(editFormState.cost)}</span>
-                                <div className="flex gap-2">
-                                    <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent">Cancelar</button>
-                                    <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">Guardar Cambios</button>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Estado</label>
+                                <select name="status" value={editFormState.status} onChange={handleEditFormChange} className="w-full p-2 border border-border rounded-lg text-foreground bg-input" style={{ backgroundColor: 'hsl(var(--input))' }}>
+                                    <option value={AppointmentStatus.Scheduled}>Agendada</option><option value={AppointmentStatus.Completed}>Completada</option>
+                                    <option value={AppointmentStatus.Canceled}>Cancelada</option><option value={AppointmentStatus.PaymentPending}>Falta Pago</option>
+                                </select>
+                            </div>
+                            <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
+                        </div> {/* <-- FIN CORRECCIÓN: Fin del div con padding */}
+                        
+                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-card border-t border-border rounded-b-2xl">
+                            <div className="flex justify-between items-center">
+                                <button type="button" onClick={handleDeleteFromModal} className="bg-red-600 text-white font-bold py-2 px-3 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors text-sm"><TrashIcon className="w-4 h-4" /> Eliminar</button>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-md">Total: {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(editFormState.cost)}</span>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={handleCloseModal} className="px-3 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent text-sm">Cancelar</button>
+                                        <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-3 rounded-lg hover:bg-primary/90 transition-colors text-sm">Guardar</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
