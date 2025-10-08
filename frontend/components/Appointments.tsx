@@ -413,9 +413,11 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                 </form>
             </Modal>
             
+            {/* --- INICIO DE LA CORRECCIÓN --- */}
             <Modal isOpen={!!viewingAppointment} onClose={handleCloseModal} title="Editar Cita">
                 {viewingAppointment && editFormState && (
                     <form onSubmit={handleUpdateAppointment} className="flex flex-col h-full">
+                        {/* 1. Contenido Principal con Scroll */}
                         <div className="flex-grow overflow-y-auto p-4 space-y-4">
                             <div><label className="block text-sm font-medium mb-1">Cliente</label><ClientSearch clients={clients} selectedClientId={editFormState.clientId} onClientSelect={(clientId) => setEditFormState((prev: any) => ({ ...prev, clientId }))}/></div>
                             <div>
@@ -445,12 +447,15 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                             <textarea name="notes" value={editFormState.notes} onChange={handleEditFormChange} placeholder="Notas generales (opcional)" className="w-full p-2 border border-border rounded-lg bg-input text-foreground" style={{ backgroundColor: 'hsl(var(--input))' }}/>
                         </div>
                         
+                        {/* 2. Barra de Botones Fija y Adaptable */}
                         <div className="flex-shrink-0 p-4 bg-card border-t border-border">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                {/* Botón Eliminar */}
                                 <button type="button" onClick={handleDeleteFromModal} className="w-full sm:w-auto order-last sm:order-first bg-red-600 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2 hover:bg-red-700 transition-colors text-sm">
                                     <TrashIcon className="w-4 h-4" /> Eliminar
                                 </button>
                                 
+                                {/* Grupo de Botones Principales */}
                                 <div className="w-full sm:w-auto flex flex-col-reverse sm:flex-row sm:items-center gap-3">
                                     <div className="flex gap-2 w-full">
                                         <button type="button" onClick={handleCloseModal} className="w-1/2 sm:w-auto px-3 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-accent text-sm">Cancelar</button>
@@ -463,6 +468,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                     </form>
                 )}
             </Modal>
+            {/* --- FIN DE LA CORRECCIÓN --- */}
         </div>
     );
 };
