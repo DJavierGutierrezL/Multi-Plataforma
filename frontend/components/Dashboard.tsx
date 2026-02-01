@@ -156,9 +156,32 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
     }, [viewDate]);
 
     const statusPieData = useMemo(() => {
-        const counts = appointments.reduce((acc, app) => { if (app.status) acc[app.status] = (acc[app.status] || 0) + 1; return acc; }, {} as Record<string, number>);
-        const colors: Record<string, string> = { [AppointmentStatus.Scheduled]: '#ec4899', [AppointmentStatus.Completed]: '#60a5fa', [AppointmentStatus.Canceled]: '#ef4444', [AppointmentStatus.PaymentPending]: '#f97316' };
-        return Object.entries(counts).map(([name, value]) => ({ name, value, fill: colors[name] || '#9ca3af' }));
+        const counts = appointments.reduce((acc, app) => { 
+            if (app.status) acc[app.status] = (acc[app.status] || 0) + 1; 
+            return acc; 
+        }, {} as Record<string, number>);
+
+        // 1. Definimos los colores exactos (Hexadecimales) para coincidir con la Agenda
+        const colors: Record<string, string> = { 
+            [AppointmentStatus.Scheduled]: '#ec4899',       // Rosa (Agendada)
+            [AppointmentStatus.Completed]: '#22c55e',       // Verde (Completada) - ANTES ERA AZUL
+            [AppointmentStatus.Canceled]: '#ef4444',        // Rojo (Cancelada)
+            [AppointmentStatus.PaymentPending]: '#f97316'   // Naranja (Falta Pago)
+        };
+
+        // 2. Definimos las traducciones para que la Gráfica muestre español
+        const translations: Record<string, string> = {
+            [AppointmentStatus.Scheduled]: 'Agendada',
+            [AppointmentStatus.Completed]: 'Completada',
+            [AppointmentStatus.Canceled]: 'Cancelada',
+            [AppointmentStatus.PaymentPending]: 'Falta Pago'
+        };
+
+        return Object.entries(counts).map(([originalStatus, value]) => ({ 
+            name: translations[originalStatus] || originalStatus, // Usamos la traducción aquí
+            value, 
+            fill: colors[originalStatus] || '#9ca3af' 
+        }));
     }, [appointments]);
     
     const clientsWithBirthdaysThisWeek = useMemo(() => {
