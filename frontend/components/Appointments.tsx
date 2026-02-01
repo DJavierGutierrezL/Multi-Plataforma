@@ -376,11 +376,13 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                             >
                                 <div className={`font-bold text-sm self-end ${isSelected ? 'text-primary' : isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}`}>{date.getDate()}</div>
                                 <div className="space-y-1 w-full mt-1 overflow-y-auto">
-                                    {dayAppointments.slice(0, 2).map(app => (
-                                        <div key={app.id} className="bg-primary/80 text-primary-foreground text-xs rounded p-1 text-left truncate cursor-pointer" onClick={(e) => { e.stopPropagation(); setViewingAppointment(app); }}>
-                                            <span>{formatTime12h(app.appointmentTime)}</span> - <span>{app.clientFirstName}</span>
-                                        </div>
-                                    ))}
+                                    {dayAppointments.slice(0, 2).map(app =>  (<div  key={app.id} 
+                                        className={`text-xs rounded p-1 text-left truncate cursor-pointer border ${getStatusClasses(app.status)}`} 
+                                        onClick={(e) => { e.stopPropagation(); setViewingAppointment(app); }}
+                                    >
+                                        <span>{formatTime12h(app.appointmentTime)}</span> - <span>{app.clientFirstName}</span>
+                                    </div>
+                                                                    ))}
                                     {dayAppointments.length > 2 && <div className="text-xs text-muted-foreground text-center">...{dayAppointments.length - 2} más</div>}
                                 </div>
                             </div>
