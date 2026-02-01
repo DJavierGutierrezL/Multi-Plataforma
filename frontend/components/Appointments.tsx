@@ -286,7 +286,12 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
         };
         return statuses[status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     };
-
+    const statusTranslations: Record<string, string> = {
+        [AppointmentStatus.Scheduled]: 'Agendada',
+        [AppointmentStatus.Completed]: 'Completada',
+        [AppointmentStatus.Canceled]: 'Cancelada',
+        [AppointmentStatus.PaymentPending]: 'Falta Pago',
+    };
     const handleCloseModal = () => {
         setIsCreateModalOpen(false);
         setViewingAppointment(null);
@@ -413,7 +418,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ appointments, clients, serv
                                                 <p className="font-bold text-lg text-card-foreground">{app.clientFirstName} {app.clientLastName}</p>
                                             </div>
                                             <div className="text-right">
-                                                <div className={`text-xs font-bold py-1 px-3 rounded-full border ${getStatusClasses(app.status)}`}>{app.status}</div>
+                                                <div className={`text-xs font-bold py-1 px-3 rounded-full border ${getStatusClasses(app.status)}`}>{statusTranslations[app.status] || app.status}</div>
                                                 <button onClick={() => setViewingAppointment(app)} className="mt-2 bg-accent text-accent-foreground p-2 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors">
                                                     <PencilIcon className="w-5 h-5"/>
                                                 </button>
