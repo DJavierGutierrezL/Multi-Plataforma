@@ -161,26 +161,25 @@ const Dashboard: React.FC<DashboardProps> = ({ appointments: rawAppointments, cl
             return acc; 
         }, {} as Record<string, number>);
 
-        // 1. Definimos los colores exactos (Hexadecimales) para coincidir con la Agenda
+        // Usamos las claves de texto DIRECTAS para asegurar que coincidan con tus datos
         const colors: Record<string, string> = { 
-            [AppointmentStatus.Scheduled]: '#ec4899',       // Rosa (Agendada)
-            [AppointmentStatus.Completed]: '#22c55e',       // Verde (Completada) - ANTES ERA AZUL
-            [AppointmentStatus.Canceled]: '#ef4444',        // Rojo (Cancelada)
-            [AppointmentStatus.PaymentPending]: '#f97316'   // Naranja (Falta Pago)
+            'Scheduled': '#ec4899',       // Rosa
+            'Completed': '#22c55e',       // Verde
+            'Canceled': '#ef4444',        // Rojo
+            'PaymentPending': '#f97316'   // Naranja (Este es el que fallaba)
         };
 
-        // 2. Definimos las traducciones para que la Gráfica muestre español
         const translations: Record<string, string> = {
-            [AppointmentStatus.Scheduled]: 'Agendada',
-            [AppointmentStatus.Completed]: 'Completada',
-            [AppointmentStatus.Canceled]: 'Cancelada',
-            [AppointmentStatus.PaymentPending]: 'Falta Pago'
+            'Scheduled': 'Agendada',
+            'Completed': 'Completada',
+            'Canceled': 'Cancelada',
+            'PaymentPending': 'Falta Pago' // Traducción forzada
         };
 
         return Object.entries(counts).map(([originalStatus, value]) => ({ 
-            name: translations[originalStatus] || originalStatus, // Usamos la traducción aquí
+            name: translations[originalStatus] || originalStatus, 
             value, 
-            fill: colors[originalStatus] || '#9ca3af' 
+            fill: colors[originalStatus] || '#9ca3af' // Si no coincide, usa gris
         }));
     }, [appointments]);
     
